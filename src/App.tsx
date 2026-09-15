@@ -43,7 +43,10 @@ import type { DefaultExamProfileQuestion, ExamPassRule } from './lib/examPublish
 
 export default function App() {
   const [role, setRole] = useState<Role>('HQ Trainer');
-  const [activeTab, setActiveTab] = useState<string>('dashboard');
+  // 支持 #页面标识 直接进入指定工作台（例如 #training_inspection 用于协作预览）。
+  const [activeTab, setActiveTab] = useState<string>(
+    () => window.location.hash.slice(1) || 'dashboard',
+  );
   const [materialLibrarySubmissionId, setMaterialLibrarySubmissionId] = useState<string | null>(null);
 
   // Global Course Generation State
@@ -52,6 +55,11 @@ export default function App() {
   const [homeworkCourseTitle, setHomeworkCourseTitle] = useState<string | null>(null);
   const [showSuccessBanner, setShowSuccessBanner] = useState(false);
   const [examTasks, setExamTasks] = useState<ExamTask[]>(INITIAL_EXAM_TASKS);
+
+  React.useEffect(() => {
+    if (window.location.hash.slice(1) !== activeTab)
+      window.history.replaceState(null, '', `#${activeTab}`);
+  }, [activeTab]);
 
   React.useEffect(() => {
     const state = getInspectionState();

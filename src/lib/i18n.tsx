@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { safeStorage } from './safeStorage';
 
 export type Language = 'zh' | 'en' | 'id';
 
@@ -2084,12 +2085,13 @@ function TranslationRuntime({ language }: { language: Language }) {
 
 export function I18nProvider({ children }: { children: React.ReactNode }) {
   const [language, setLanguage] = useState<Language>(() => {
-    const stored = window.localStorage.getItem('salesboost-ai-language') as Language | null;
+    // 受限环境（Codex 内置浏览器 / 沙箱 iframe）下 localStorage 会抛异常，统一走 safeStorage 降级
+    const stored = safeStorage.getItem('salesboost-ai-language') as Language | null;
     return stored && ['zh', 'en', 'id'].includes(stored) ? stored : 'zh';
   });
 
   useEffect(() => {
-    window.localStorage.setItem('salesboost-ai-language', language);
+    safeStorage.setItem('salesboost-ai-language', language);
   }, [language]);
 
   const value = useMemo<I18nContextValue>(() => ({
