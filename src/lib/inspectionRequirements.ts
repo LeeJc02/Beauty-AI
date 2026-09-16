@@ -1,10 +1,10 @@
 /**
- * 培训巡检 · 自定义巡检需求
+ * 培训审计 · 自定义审计需求
  *
- * 用户在「问问巡检 Agent」里通过选项对话创建一条自己的巡检需求：
+ * 用户在「问问审计 Agent」里通过选项对话创建一条自己的审计需求：
  * 关注哪些方面、看哪个区域、多久跑一次、从哪天跑到哪天。
- * 这里只做纯计算：按需求筛选巡检结论、算出这次运行的「工作记录」、判断是否到点该跑。
- * 不改任务数据，也不写主巡检存档。
+ * 这里只做纯计算：按需求筛选审计结论、算出这次运行的「工作记录」、判断是否到点该跑。
+ * 不改任务数据，也不写主审计存档。
  */
 
 import {
@@ -40,7 +40,7 @@ export type RequirementCadence = "daily" | "weekly" | "monthly";
 export type RequirementStatus = "active" | "paused" | "finished";
 export type RequirementRunTrigger = "auto" | "manual";
 
-export const CREATE_REQUIREMENT_PROMPT = "新建一个巡检需求";
+export const CREATE_REQUIREMENT_PROMPT = "新建一个审计需求";
 export const MAX_REQUIREMENTS = 6;
 export const REQUIREMENT_NAME_LIMIT = 12;
 
@@ -107,9 +107,9 @@ export const CADENCE_LABELS: Record<RequirementCadence, string> = {
 };
 
 const CADENCE_SHORT: Record<RequirementCadence, string> = {
-  daily: "每天巡检",
-  weekly: "每周巡检",
-  monthly: "每月巡检",
+  daily: "每天审计",
+  weekly: "每周审计",
+  monthly: "每月审计",
 };
 
 export const STATUS_LABELS: Record<RequirementStatus, string> = {
@@ -141,9 +141,9 @@ export interface RequirementRun {
   id: string;
   /** 同一结论首次记录时间（ISO）。 */
   at: string;
-  /** 同一结论最近一次巡检时间（ISO）。 */
+  /** 同一结论最近一次审计时间（ISO）。 */
   lastSeenAt: string;
-  /** 连续巡检到同一结论的次数（含首次）。 */
+  /** 连续审计到同一结论的次数（含首次）。 */
   repeatCount: number;
   trigger: RequirementRunTrigger;
   /** 这次运行统计的周期（周一）。 */
@@ -509,7 +509,7 @@ const emptyAspectCount = (): Record<RequirementAspect, number> => ({
 });
 
 /**
- * 按需求跑一次巡检：只统计这个需求关注的任务与问题，
+ * 按需求跑一次审计：只统计这个需求关注的任务与问题，
  * 结论和上一次一致时只推进时间与连续次数，不新增记录。
  */
 export function runRequirement(
@@ -573,7 +573,7 @@ export function runRequirement(
     .slice(0, 12);
   if (!risks.length)
     taskLines.push(
-      `本次巡检了 ${taskIds.length} 项任务，没有发现这一类问题。`,
+      `本次审计了 ${taskIds.length} 项任务，没有发现这一类问题。`,
     );
 
   const previous = requirement.runs.at(-1);
@@ -707,7 +707,7 @@ export function describeRequirement(
   ].join(" · ");
 }
 
-/** 默认名称：区域 + 关注点 + 巡检，例如「雅加达南区重复布置巡检」。 */
+/** 默认名称：区域 + 关注点 + 审计，例如「雅加达南区重复布置审计」。 */
 export function defaultRequirementName(
   state: InspectionState,
   draft: Pick<RequirementDraft, "aspects" | "regionId" | "cadence"> & {
@@ -728,8 +728,8 @@ export function defaultRequirementName(
       : categories.length && draft.aspects.includes("category")
         ? categories[0]
         : "综合";
-  const plain = `${region}${aspect}巡检`;
-  const withCadence = `${region}${aspect}${CADENCE_SHORT[draft.cadence].slice(0, 2)}巡检`;
+  const plain = `${region}${aspect}审计`;
+  const withCadence = `${region}${aspect}${CADENCE_SHORT[draft.cadence].slice(0, 2)}审计`;
   return (withCadence.length <= REQUIREMENT_NAME_LIMIT ? withCadence : plain).slice(
     0,
     REQUIREMENT_NAME_LIMIT,
@@ -747,10 +747,10 @@ export const requirementHasUnreadRun = (requirement: InspectionRequirement) => {
   return latest.lastSeenAt > (requirement.lastViewedAt ?? "");
 };
 
-/** 用户在对话里说「新建 / 创建一个巡检」，就进入创建向导。 */
+/** 用户在对话里说「新建 / 创建一个审计」，就进入创建向导。 */
 export function matchRequirementIntent(text: string) {
   const wantsNew = /(新建|创建|新增|加一个|做一个|搞一个|定制)/.test(text);
-  const aboutInspection = /(巡检|体检|检查|监控|盯)/.test(text);
+  const aboutInspection = /(审计|体检|检查|监控|盯)/.test(text);
   return wantsNew && aboutInspection;
 }
 

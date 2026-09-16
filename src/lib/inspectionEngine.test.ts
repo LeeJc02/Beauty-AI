@@ -230,7 +230,7 @@ test("处置动作保留操作人、原始版本、原因、预计影响与复�
   assert.ok(record.reason.includes("超容量"));
   assert.ok(record.expectedImpact.length > 0);
   assert.ok(record.patch["频次"]);
-  assert.ok(record.recheck.summary.includes("重新巡检"));
+  assert.ok(record.recheck.summary.includes("重新审计"));
   const task = updated.tasks.find((item) => item.id === "south-drill")!;
   assert.equal(task.version, before.version + 1);
   assert.equal(task.frequency?.count, 2);
@@ -282,7 +282,7 @@ test("风险台账记录处理中、已解决与复发", () => {
   state = applyDisposition(state, hq, {
     action: "reduce-frequency",
     taskId: "south-drill",
-    reason: "降低频次后重新巡检",
+    reason: "降低频次后重新审计",
     patch: { frequency: { unit: "weekly", count: 3 } },
   });
   assert.equal(state.risks.find((item) => item.key === key)?.status, "已解决");
@@ -370,7 +370,7 @@ test("任务周期与频次不匹配、发布时间滞后、长期无复查可�
   assert.equal(longRunning.level, "low");
 });
 
-/* ---------------------------------------------------------- 巡检工作记录 */
+/* ---------------------------------------------------------- 审计工作记录 */
 
 const blankRuns = (state: InspectionState): InspectionState => ({
   ...state,
@@ -379,7 +379,7 @@ const blankRuns = (state: InspectionState): InspectionState => ({
 const at = (day: string, clock: string) =>
   new Date(`${day}T${clock}:00+07:00`);
 
-test("演示数据自带近 7 天的巡检工作记录", () => {
+test("演示数据自带近 7 天的审计工作记录", () => {
   const state = base();
   assert.equal(state.inspectionRuns.length, 4);
   const latest = state.inspectionRuns.at(-1)!;
@@ -440,7 +440,7 @@ test("结论没有变化时合并批次，跨天或出现变化时新增批次",
   assert.equal(paused.inspectionRuns.length, 2);
 });
 
-test("手动巡检始终留下一条批次，并记录执行人", () => {
+test("手动审计始终留下一条批次，并记录执行人", () => {
   const day = inspectionDay();
   const first = runInspection(blankRuns(base()), at(day, "09:00"));
   const manual = runInspection(first, at(day, "09:05"), [], {

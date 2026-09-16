@@ -16,7 +16,7 @@ const I18nContext = createContext<I18nContextValue | null>(null);
 const zh: Dictionary = {};
 
 const en: Dictionary = {
-  '培训巡检': 'Training Inspection',
+  '数据审计': 'Data Audit',
   '全国数据': 'National Data',
   '在线课件': 'Online Courses',
   '生成新课件': 'Create Course',
@@ -910,7 +910,7 @@ const en: Dictionary = {
 };
 
 const id: Dictionary = {
-  '培训巡检': 'Inspeksi Pelatihan',
+  '数据审计': 'Audit Data',
   '全国数据': 'Data Nasional',
   '在线课件': 'Kursus Online',
   '生成新课件': 'Buat Kursus',

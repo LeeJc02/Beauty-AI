@@ -77,11 +77,11 @@ interface ChatMessage {
 }
 
 const ASPECT_QUESTION =
-  "先确认这次巡检要盯哪些方面？可以点下面的按钮多选，也可以直接打字说（例如「重复布置和时间集中」或「都要」）。";
+  "先确认这次审计要盯哪些方面？可以点下面的按钮多选，也可以直接打字说（例如「重复布置和时间集中」或「都要」）。";
 const CATEGORY_QUESTION =
   "要看哪些品类？可以多选，也可以直接打字，例如「新品和敏感肌」或「都要」。";
 const SCOPE_QUESTION =
-  "巡检范围定在哪里？可以点下面的区域，也可以直接打字，例如「南区」或「全国」。";
+  "审计范围定在哪里？可以点下面的区域，也可以直接打字，例如「南区」或「全国」。";
 const CADENCE_QUESTION =
   "多久自动跑一次？每天 / 每周一 / 每月 1 日都可以，直接打字说也一样。";
 const PERIOD_QUESTION =
@@ -117,7 +117,7 @@ const PERIOD_OPTIONS: ChatOption[] = [
 
 /**
  * 首屏对话 Agent：普通问答走 answerInspectionQuestion；
- * 「新建一个巡检需求」进入选项式反问向导，四步问完就能建 tab。
+ * 「新建一个审计需求」进入选项式反问向导，四步问完就能建 tab。
  */
 export function AgentPanel({
   state,
@@ -193,7 +193,7 @@ export function AgentPanel({
       handleWizardText(text);
       return;
     }
-    // 说「新建 / 创建一个巡检」就进创建向导，其他问题照旧走问答
+    // 说「新建 / 创建一个审计」就进创建向导，其他问题照旧走问答
     if (
       text === CREATE_REQUIREMENT_PROMPT ||
       matchRequirementIntent(text)
@@ -208,7 +208,7 @@ export function AgentPanel({
     setMessages((current) => [
       ...current,
       { id: `user-${Date.now()}`, role: "user", text },
-      { id: pendingId, role: "agent", text: "正在查看巡检记录…", pending: true },
+      { id: pendingId, role: "agent", text: "正在查看审计记录…", pending: true },
     ]);
     const history = messages
       .filter((message) => !message.pending)
@@ -217,7 +217,7 @@ export function AgentPanel({
         text: message.role === "agent" ? (message.answer?.title ?? message.text) : message.text,
       }));
     const answer = await answerInspectionQuestion(state, actor, text, history);
-    // Agent 只能「提议」写操作：改自动巡检频次由界面落到策略上
+    // Agent 只能「提议」写操作：改自动审计频次由界面落到策略上
     if (answer.action?.type === "set-cadence") {
       const minutes = answer.action.minutes;
       setInspectionState((previous) => ({
@@ -563,14 +563,14 @@ export function AgentPanel({
     const requirement = result.requirement;
     pushAgent(
       `已经建好了：「${requirement.name}」。${describeRequirement(state, requirement)}。` +
-        `标签页已经切过去了，之后点它就能看这个巡检跑得怎么样。`,
+        `标签页已经切过去了，之后点它就能看这个审计跑得怎么样。`,
     );
     onCreatedRequirement(requirement.id);
   };
 
   const cancelWizard = () => {
     setWizard(null);
-    pushAgent("已取消。需要的时候再点「新建一个巡检需求」。");
+    pushAgent("已取消。需要的时候再点「新建一个审计需求」。");
   };
 
   /* -------------------------------------------------------------- 渲染 */
@@ -603,7 +603,7 @@ export function AgentPanel({
 
   return (
     <div className="rounded-xl bg-gradient-to-br from-secondary/70 to-card p-3.5 ring-1 ring-primary/15">
-      <SectionHeading title="和巡检Agent对话" />
+      <SectionHeading title="和审计Agent对话" />
 
       <div
         ref={listRef}
@@ -803,7 +803,7 @@ export function AgentPanel({
                           {message.wizardStep === "confirm" ? (
                             <div className="grid gap-2 rounded-lg bg-muted/50 p-2">
                               <label className="grid gap-1 text-[10.5px] text-muted-foreground">
-                                巡检名称（最多 {REQUIREMENT_NAME_LIMIT} 字）
+                                审计名称（最多 {REQUIREMENT_NAME_LIMIT} 字）
                                 <input
                                   className="h-8 rounded-md border border-input bg-background px-2 text-[12px] text-foreground outline-none focus-visible:border-ring"
                                   placeholder={defaultName}

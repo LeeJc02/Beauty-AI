@@ -1,8 +1,8 @@
 /**
- * 培训巡检 Agent · 本地存储与数据接入
+ * 培训审计 Agent · 本地存储与数据接入
  *
  * 状态保存在浏览器 localStorage；外部任务页（学习 / 练习 / 考试 / 采集）
- * 通过 syncInspectionSource 把原始任务摘要同步为巡检任务，缺失字段标记为「数据不足」，
+ * 通过 syncInspectionSource 把原始任务摘要同步为审计任务，缺失字段标记为「数据不足」，
  * 不伪造人员分配与时长。
  */
 
@@ -30,7 +30,7 @@ const listeners = new Set<() => void>();
 /**
  * 存档结构校验。
  *
- * 旧版本写下的存档可能「顶层字段齐全、嵌套字段缺失」（例如巡检记录里没有 taskResults），
+ * 旧版本写下的存档可能「顶层字段齐全、嵌套字段缺失」（例如审计记录里没有 taskResults），
  * 这种数据会在渲染时抛 `Cannot read properties of undefined (reading 'filter')` 直接白屏。
  * 这里逐条校验运行记录与风险项，任一项不完整就把整份存档视为不兼容并重置为演示数据。
  */
@@ -246,7 +246,7 @@ function mapSourceTask(
   };
 }
 
-/** 任务页创建或停用后调用；只有摘要真正变化时才写入巡检状态。 */
+/** 任务页创建或停用后调用；只有摘要真正变化时才写入审计状态。 */
 export function syncInspectionSource(
   kind: TaskKind,
   sourceId: string,
@@ -278,11 +278,11 @@ export function syncInspectionSource(
   );
 }
 
-/* ----------------------------------------------------------- 定时巡检 */
+/* ----------------------------------------------------------- 定时审计 */
 
 let timer: ReturnType<typeof setTimeout> | undefined;
 
-/** 自动巡检间隔按策略走（默认 30 分钟），Agent 改了频率下一轮就生效。 */
+/** 自动审计间隔按策略走（默认 30 分钟），Agent 改了频率下一轮就生效。 */
 const scheduleNext = () => {
   const minutes = clampAutoRunMinutes(
     getInspectionState().policy.autoRunMinutes,

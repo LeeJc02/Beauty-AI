@@ -10,7 +10,7 @@ import {
 const state = () => createInspectionState();
 const week = () => weekStart(inspectionDay());
 
-test("调整建议：发给任务创建者，问题去重、动作来自巡检结论", () => {
+test("调整建议：发给任务创建者，问题去重、动作来自审计结论", () => {
   const current = state();
   const task = current.tasks.find((item) => item.id === "south-vip")!;
   const suggestion = buildAdjustmentSuggestion(
@@ -44,7 +44,7 @@ test("调整建议：发给任务创建者，问题去重、动作来自巡检�
   assert.ok(
     suggestion.impact.includes("分钟") || suggestion.impact.includes("人"),
   );
-  assert.ok(suggestion.note.includes("巡检 Agent"));
+  assert.ok(suggestion.note.includes("审计 Agent"));
 });
 
 test("调整建议：总部任务的创建者是总部负责人；无问题时也能给出草稿", () => {

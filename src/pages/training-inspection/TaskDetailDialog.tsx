@@ -334,7 +334,7 @@ export function TaskDetailDialog({
           {sendState === "generating" ? (
             <section className="grid gap-1.5 rounded-lg bg-secondary/60 px-3 py-2.5 ring-1 ring-primary/15">
               <span className="flex items-center gap-1.5 font-medium text-foreground">
-                <Loader2 size={13} className="animate-spin" /> Agent 正在根据巡检结论生成调整建议…
+                <Loader2 size={13} className="animate-spin" /> Agent 正在根据审计结论生成调整建议…
               </span>
               <span className="text-[11px] text-muted-foreground">
                 会带上这项任务当前的问题、建议动作和影响范围。

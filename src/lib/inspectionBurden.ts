@@ -1,9 +1,9 @@
 /**
- * 培训巡检 · 区域负担（时间视角）
+ * 培训审计 · 区域负担（时间视角）
  *
  * 只回答一件事：本周的任务排期，让不同区域的 BA 要花多少分钟、有多少人超出容量。
- * 全部复用巡检引擎的排期口径（personItems / regionAggregates / taskPeriods），
- * 不另起一套算法，保证和巡检结论、Agent 回答的数字一致。
+ * 全部复用审计引擎的排期口径（personItems / regionAggregates / taskPeriods），
+ * 不另起一套算法，保证和审计结论、Agent 回答的数字一致。
  */
 
 import {

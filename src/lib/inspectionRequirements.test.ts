@@ -38,7 +38,7 @@ const draft = (
   overrides: Partial<InspectionRequirement> = {},
 ): InspectionRequirement => ({
   id: "req-test",
-  name: "测试巡检",
+  name: "测试审计",
   aspects: ["duplicate"],
   categories: [],
   regionId: null,
@@ -314,10 +314,10 @@ test("区域账号：只看到本区域与全国需求；总部看全部", () =>
   }
 });
 
-test("对话意图与文案：说新建巡检才进向导，名称与描述可读", () => {
-  assert.equal(matchRequirementIntent("帮我新建一个巡检需求"), true);
+test("对话意图与文案：说新建审计才进向导，名称与描述可读", () => {
+  assert.equal(matchRequirementIntent("帮我新建一个审计需求"), true);
   assert.equal(matchRequirementIntent("创建一个重复布置的检查"), true);
-  assert.equal(matchRequirementIntent("最近巡检了哪些任务？"), false);
+  assert.equal(matchRequirementIntent("最近审计了哪些任务？"), false);
   assert.equal(matchRequirementIntent("这一周哪些任务重合了？"), false);
 
   const current = state();
@@ -326,7 +326,7 @@ test("对话意图与文案：说新建巡检才进向导，名称与描述可�
     regionId: "south",
     cadence: "weekly",
   });
-  assert.equal(name, "雅加达南区重复布置巡检");
+  assert.equal(name, "雅加达南区重复布置审计");
   assert.ok(name.length <= 12);
 
   const description = describeRequirement(current, {
@@ -495,7 +495,7 @@ test("包含特定品类：品类来自任务数据，问题只看这些品类�
     regionId: null,
     cadence: "weekly",
   });
-  assert.equal(name, "全国新品每周巡检");
+  assert.equal(name, "全国新品每周审计");
   const description = describeRequirement(current, {
     aspects: ["category"],
     categories: ["新品", "敏感肌"],

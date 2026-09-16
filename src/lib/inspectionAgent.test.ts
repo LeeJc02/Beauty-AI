@@ -34,12 +34,12 @@ const south: InspectionActor = {
   roleLabel: "南区培训主管",
 };
 
-test("最近巡检问题回答覆盖了哪些任务，并引用巡检记录", () => {
+test("最近审计问题回答覆盖了哪些任务，并引用审计记录", () => {
   const current = state();
-  const answer = localInspectionAnswer(current, hq, "最近巡检了哪些任务？");
+  const answer = localInspectionAnswer(current, hq, "最近审计了哪些任务？");
   assert.equal(answer.intent, "recent");
   assert.ok(answer.bullets.length > 0);
-  assert.ok(answer.citations[0].label.includes("巡检记录"));
+  assert.ok(answer.citations[0].label.includes("审计记录"));
   assert.ok(answer.paragraphs[0].includes("项任务"));
   assert.ok(answer.taskIds.length > 0);
 });
@@ -74,7 +74,7 @@ test("数据不全与变化两个问题命中各自意图", () => {
   const changes = localInspectionAnswer(
     current,
     hq,
-    "上次巡检到现在有什么变化？",
+    "上次审计到现在有什么变化？",
   );
   assert.equal(changes.intent, "changes");
   assert.ok(changes.paragraphs[0].includes("到"));
@@ -143,11 +143,11 @@ test("问不到的问题返回可回答范围，不编造结论", () => {
 test("回答引用的任务 ID 都能在任务列表里找到", () => {
   const current = state();
   const questions = [
-    "最近巡检了哪些任务？",
+    "最近审计了哪些任务？",
     "现在有哪些任务需要我处理？",
     "风险最高的任务是什么？",
     "哪些任务数据不全？",
-    "上次巡检到现在有什么变化？",
+    "上次审计到现在有什么变化？",
     "南区现在什么情况？",
     "南区数字人剧本通关冲刺为什么被标记？",
   ];
@@ -169,20 +169,20 @@ test("回答引用的任务 ID 都能在任务列表里找到", () => {
 
 test("对话入口与本地回答保持一致，方便将来替换成真实模型", async () => {
   const current = state();
-  const local = localInspectionAnswer(current, hq, "最近巡检了哪些任务？");
+  const local = localInspectionAnswer(current, hq, "最近审计了哪些任务？");
   const viaAdapter = await answerInspectionQuestion(
     current,
     hq,
-    "最近巡检了哪些任务？",
+    "最近审计了哪些任务？",
     [],
     { delayMs: 0 },
   );
   assert.deepEqual(viaAdapter, local);
 });
 
-test("自动巡检频次：可以问，也可以让 Agent 改", () => {
+test("自动审计频次：可以问，也可以让 Agent 改", () => {
   const current = state();
-  const asked = localInspectionAnswer(current, hq, "自动巡检多久跑一次？");
+  const asked = localInspectionAnswer(current, hq, "自动审计多久跑一次？");
   assert.equal(asked.intent, "cadence");
   assert.equal(asked.action, undefined);
   assert.ok(asked.title.includes("30 分钟"));
@@ -191,7 +191,7 @@ test("自动巡检频次：可以问，也可以让 Agent 改", () => {
   const changed = localInspectionAnswer(
     current,
     hq,
-    "把巡检频率改成每 2 小时一次",
+    "把审计频率改成每 2 小时一次",
   );
   assert.equal(changed.intent, "cadence");
   assert.deepEqual(changed.action, { type: "set-cadence", minutes: 120 });

@@ -72,7 +72,7 @@ export function Layout({ children, role, setRole, activeTab, setActiveTab }: Lay
       case 'HQ Trainer':
         return [
           { id: 'dashboard', label: '全国数据', icon: LayoutDashboard },
-          { id: 'training_inspection', label: '培训巡检', icon: ShieldCheck },
+          { id: 'training_inspection', label: '数据审计', icon: ShieldCheck },
           { id: 'course_group', label: '在线课件', icon: BookOpen, subMenu: [
             { id: 'courses', label: '生成新课件' },
             { id: 'courses_manage', label: '课件管理' }
@@ -104,7 +104,7 @@ export function Layout({ children, role, setRole, activeTab, setActiveTab }: Lay
       case 'Regional Training Manager':
         return [
           { id: 'dashboard', label: '区域数据', icon: LayoutDashboard },
-          { id: 'training_inspection', label: '培训巡检', icon: ShieldCheck },
+          { id: 'training_inspection', label: '数据审计', icon: ShieldCheck },
           { id: 'regional_content', label: '区域补充内容', icon: BookOpen, subMenu: [
             { id: 'courses', label: '生成新课件' },
             { id: 'courses_manage', label: '区域课件管理' },
@@ -128,7 +128,7 @@ export function Layout({ children, role, setRole, activeTab, setActiveTab }: Lay
       case 'Regional Manager':
         return [
           { id: 'dashboard', label: '区域数据', icon: LayoutDashboard },
-          { id: 'training_inspection', label: '培训巡检', icon: ShieldCheck },
+          { id: 'training_inspection', label: '数据审计', icon: ShieldCheck },
           { id: 'tasks_group', label: '周期任务监控', icon: ClipboardList, subMenu: [
             { id: 'study_task_manage', label: '学习任务' },
             { id: 'practice_task_manage', label: '练习任务' },
@@ -145,7 +145,7 @@ export function Layout({ children, role, setRole, activeTab, setActiveTab }: Lay
       case 'Regional Trainer':
         return [
           { id: 'dashboard', label: '区域数据', icon: LayoutDashboard },
-          { id: 'training_inspection', label: '培训巡检', icon: ShieldCheck },
+          { id: 'training_inspection', label: '数据审计', icon: ShieldCheck },
           { id: 'regional_content', label: '区域补充内容', icon: BookOpen, subMenu: [
             { id: 'courses', label: '生成新课件' },
             { id: 'courses_manage', label: '区域课件管理' },

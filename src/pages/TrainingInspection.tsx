@@ -68,8 +68,8 @@ import { Chip, actorForRole, scopeRisk } from "./training-inspection/shared";
 import "./TrainingInspection.css";
 
 const tabs = [
-  { id: "overview", label: "巡检总览", icon: Activity },
-  { id: "checkup", label: "区域负担", icon: Layers },
+  { id: "overview", label: "审计工作台", icon: Activity },
+  { id: "checkup", label: "区域工时审计", icon: Layers },
 ] as const;
 
 const sourceTabs: Record<string, string> = {
@@ -90,7 +90,7 @@ export function TrainingInspection({
   const actor = useMemo(() => actorForRole(role), [role]);
   const today = inspectionDay();
   const currentWeek = weekStart(today);
-  /** 固定两个 tab，加上用户自己创建的自定义巡检 tab（id 就是需求 id）。 */
+  /** 固定两个 tab，加上用户自己创建的自定义审计 tab（id 就是需求 id）。 */
   const [tab, setTab] = useState<string>("overview");
   const requirements = useRequirements();
   const [removeRequirement, setRemoveRequirement] =
@@ -115,7 +115,7 @@ export function TrainingInspection({
     setSelectedTaskId(null);
   }, [actor]);
 
-  /** 当前账号看得到的自定义巡检：总部看全部，区域账号看本区域与全国需求。 */
+  /** 当前账号看得到的自定义审计：总部看全部，区域账号看本区域与全国需求。 */
   const visibleRequirements = useMemo(
     () => requirements.filter((item) => requirementVisibleTo(item, actor)),
     [requirements, actor],
@@ -130,7 +130,7 @@ export function TrainingInspection({
     }
   }, [requirements, state]);
 
-  /** 打开自定义巡检 tab 就算看过了，小圆点消失。 */
+  /** 打开自定义审计 tab 就算看过了，小圆点消失。 */
   useEffect(() => {
     if (tab === "overview" || tab === "checkup") return;
     const target = visibleRequirements.find((item) => item.id === tab);
@@ -139,7 +139,7 @@ export function TrainingInspection({
     if (latest) markRequirementViewed(target.id, latest.lastSeenAt);
   }, [tab, visibleRequirements]);
 
-  /** 需求被删掉或角色切换看不到时，回到巡检总览。 */
+  /** 需求被删掉或角色切换看不到时，回到审计总览。 */
   useEffect(() => {
     if (tab === "overview" || tab === "checkup") return;
     if (!visibleRequirements.some((item) => item.id === tab)) setTab("overview");
@@ -161,7 +161,7 @@ export function TrainingInspection({
     return () => clearTimeout(timer);
   }, [message]);
 
-  /** 当前角色可见的巡检结论，不做界面筛选（筛选在各区块内完成）。 */
+  /** 当前角色可见的审计结论，不做界面筛选（筛选在各区块内完成）。 */
   const risks = useMemo(() => {
     return evaluateRisks(state, [week], today)
       .map((risk) => scopeRisk(risk, actor, state))
@@ -188,7 +188,7 @@ export function TrainingInspection({
         }),
       );
       setBusy(false);
-      setMessage("巡检完成，已写入一条新记录。");
+      setMessage("审计完成，已写入一条新记录。");
     }, 320);
   };
 
@@ -267,21 +267,21 @@ export function TrainingInspection({
         .join("、")}）`;
     };
     const lines = [
-      `SalesBoost AI 培训巡检工作记录（模拟数据）`,
+      `SalesBoost AI 数据审计留档（模拟数据）`,
       `生成时间：${new Date().toLocaleString("zh-CN", { timeZone: "Asia/Jakarta" })} · 周期 ${week} ~ ${addDays(week, 6)}`,
       `策略 v${state.policy.version} · 数据 v${state.revision} · 批次 ${state.inspectionRuns.length} 条`,
       "",
-      `一、最近一次巡检`,
+      `一、最近一次审计`,
       latest
-        ? `${latest.at.slice(0, 16).replace("T", " ")} ${latest.trigger === "manual" ? "手动巡检" : "自动巡检"} · 覆盖 ${latest.taskCount} 项任务 · 高风险 ${latest.snapshot.high}、中风险 ${latest.snapshot.medium}、低风险 ${latest.snapshot.low}、数据不足 ${latest.snapshot.insufficient}${
-            latest.repeatCount > 1 ? ` · 结论未变化，连续巡检 ${latest.repeatCount} 次` : ""
+        ? `${latest.at.slice(0, 16).replace("T", " ")} ${latest.trigger === "manual" ? "手动审计" : "自动审计"} · 覆盖 ${latest.taskCount} 项任务 · 高风险 ${latest.snapshot.high}、中风险 ${latest.snapshot.medium}、低风险 ${latest.snapshot.low}、数据不足 ${latest.snapshot.insufficient}${
+            latest.repeatCount > 1 ? ` · 结论未变化，连续审计 ${latest.repeatCount} 次` : ""
           }`
-        : "尚未产生巡检批次",
+        : "尚未产生审计批次",
       "",
-      `二、巡检批次记录`,
+      `二、审计批次记录`,
       ...(state.inspectionRuns.length
         ? [...state.inspectionRuns].reverse().flatMap((record) => [
-            `${record.at.slice(0, 16).replace("T", " ")} ${record.trigger === "manual" ? "手动巡检" : "自动巡检"}（${record.actorName} / ${record.roleLabel}）· 覆盖 ${record.taskCount} 项任务 · 风险 高${record.snapshot.high}/中${record.snapshot.medium}/低${record.snapshot.low}/数据不足${record.snapshot.insufficient}`,
+            `${record.at.slice(0, 16).replace("T", " ")} ${record.trigger === "manual" ? "手动审计" : "自动审计"}（${record.actorName} / ${record.roleLabel}）· 覆盖 ${record.taskCount} 项任务 · 风险 高${record.snapshot.high}/中${record.snapshot.medium}/低${record.snapshot.low}/数据不足${record.snapshot.insufficient}`,
             `   新增 ${record.added.length} 项、解除 ${record.resolved.length} 项、等级变化 ${record.levelChanged.length} 项`,
             ...record.added.map((change) => `   + ${change.ruleId} ${change.ruleName}：${change.title}`),
             ...record.resolved.map((change) => `   - ${change.ruleId} ${change.ruleName}：${change.title}`),
@@ -289,7 +289,7 @@ export function TrainingInspection({
               (change) => `   ~ ${change.ruleId}：${LEVEL_LABELS[change.from]} → ${LEVEL_LABELS[change.to]}：${change.title}`,
             ),
           ])
-        : ["暂无巡检批次"]),
+        : ["暂无审计批次"]),
       "",
       `三、任务覆盖清单`,
       ...state.tasks
@@ -327,7 +327,7 @@ export function TrainingInspection({
     );
     const anchor = document.createElement("a");
     anchor.href = url;
-    const fileName = `培训巡检工作记录-${week}.txt`;
+    const fileName = `数据审计留档-${week}.txt`;
     anchor.download = fileName;
     anchor.click();
     URL.revokeObjectURL(url);
@@ -342,10 +342,12 @@ export function TrainingInspection({
       <div className="inspection-heading">
         <div>
           <div className="inspection-eyebrow">
-            <ShieldCheck size={14} /> TRAINING INSPECTION AGENT
+            <ShieldCheck size={14} /> DATA AUDIT AGENT
           </div>
-          <h1>培训巡检</h1>
-          <p>Agent 巡检了哪些任务、发现了什么；有疑问直接在下面问它。</p>
+          <h1>数据审计</h1>
+          <p>
+            Agent 用工具核对任务、人群、工时与规则口径，每条结论都带数据出处；有疑问直接在下面问它。
+          </p>
         </div>
         <div className="inspection-actions wrap">
           <div className="inspection-actions">
@@ -385,15 +387,15 @@ export function TrainingInspection({
             onClick={() => setDataGapsOpen(true)}
             title="这些数据从学习 / 练习 / 考试 / 采集任务页同步过来；缺哪些字段、去哪个页面补齐都列在里面，缺字段只标「数据不足」，不算违规"
           >
-            <Database size={14} /> 数据来源
+            <Database size={14} /> 数据源与口径
           </button>
           <button
             type="button"
             className="inspection-button"
             onClick={exportBrief}
-            title="把这一周的工作记录（批次、任务清单、结论明细、处置记录）下载成 txt 文件"
+            title="把这一周的审计留档（批次、任务清单、结论明细、处置记录）下载成 txt 文件"
           >
-            <Download size={14} /> 导出工作记录
+            <Download size={14} /> 导出审计留档
           </button>
           <button
             type="button"
@@ -402,12 +404,12 @@ export function TrainingInspection({
             disabled={busy}
           >
             <RefreshCw size={14} className={busy ? "inspection-spin" : ""} />
-            {busy ? "巡检中" : "立即巡检"}
+            {busy ? "审计中" : "运行审计"}
           </button>
         </div>
       </div>
 
-      {/* 最近巡检信息在「最近一次巡检」卡片右上角；这里只在本地存档异常时提醒 */}
+      {/* 最近审计信息在「最近一次审计」卡片右上角；这里只在本地存档异常时提醒 */}
       {getInspectionStorageError() ? (
         <div className="inspection-runbar">
           <span>
@@ -488,6 +490,7 @@ export function TrainingInspection({
             onOpenTask={openSourceTask}
             onFocusTask={focusTask}
             onCreatedRequirement={(id) => setTab(id)}
+            onToast={setMessage}
           />
         ) : null}
         {visibleRequirements.map((item) =>
@@ -503,7 +506,7 @@ export function TrainingInspection({
               onOpenTask={openSourceTask}
               onDeleted={() => {
                 setTab("overview");
-                setMessage(`已删除自定义巡检「${item.name}」。`);
+                setMessage(`已删除自定义审计「${item.name}」。`);
               }}
             />
           ) : null,
@@ -562,7 +565,7 @@ export function TrainingInspection({
         <DialogContent className="inspection-modal max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <AlertTriangle size={16} /> 关掉这个巡检？
+              <AlertTriangle size={16} /> 关掉这个审计？
             </DialogTitle>
           </DialogHeader>
           <p className="text-[12px] leading-relaxed text-muted-foreground">
@@ -583,13 +586,13 @@ export function TrainingInspection({
               onClick={() => {
                 if (removeRequirement) {
                   deleteRequirement(removeRequirement.id);
-                  setMessage(`已删除自定义巡检「${removeRequirement.name}」。`);
+                  setMessage(`已删除自定义审计「${removeRequirement.name}」。`);
                   if (tab === removeRequirement.id) setTab("overview");
                 }
                 setRemoveRequirement(null);
               }}
             >
-              删除这个巡检
+              删除这个审计
             </button>
           </div>
         </DialogContent>

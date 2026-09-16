@@ -1,7 +1,7 @@
 /**
- * 培训巡检 Agent · 对话回答
+ * 培训审计 Agent · 对话回答
  *
- * 本轮由本地确定性规则生成回答：只复述巡检引擎已经得出的结论、证据与工作记录，
+ * 本轮由本地确定性规则生成回答：只复述审计引擎已经得出的结论、证据与工作记录，
  * 不新增判断、不修改任何数据。将来接入真实模型时，保留 `answerInspectionQuestion`
  * 这一个入口，把 `localInspectionAnswer` 换成模型适配器即可，界面无需改动。
  */
@@ -50,7 +50,7 @@ export interface AgentCitation {
   taskId?: string;
 }
 
-/** Agent 能提的写操作：目前只有「改自动巡检间隔」。界面收到后落到巡检策略上。 */
+/** Agent 能提的写操作：目前只有「改自动审计间隔」。界面收到后落到审计策略上。 */
 export interface AgentAction {
   type: "set-cadence";
   minutes: number;
@@ -69,13 +69,13 @@ export interface AgentAnswer {
 }
 
 export const AGENT_PRESET_QUESTIONS = [
-  "最近巡检了哪些任务？",
+  "最近审计了哪些任务？",
   "这一周哪些任务重合了？",
   "人均要做多少分钟？",
   "雅加达南区有哪些任务？",
   "现在有哪些任务需要我处理？",
   "哪些任务数据不全？",
-  "自动巡检多久跑一次？",
+  "自动审计多久跑一次？",
 ];
 
 const LEVEL_ORDER: RiskLevel[] = ["high", "medium", "low", "insufficient"];
@@ -131,12 +131,12 @@ const shortTaskTitleOf = (
   return `${titles.slice(0, limit).join("、")} 等 ${titles.length} 项`;
 };
 
-/** 当前登录角色能看到的巡检任务。 */
+/** 当前登录角色能看到的审计任务。 */
 export function visibleTasks(state: InspectionState, actor: InspectionActor) {
   return state.tasks.filter((task) => canSeeTask(actor, task));
 }
 
-/** 当前登录角色能看到的巡检结论，口径与页面一致（区域角色只看本区域）。 */
+/** 当前登录角色能看到的审计结论，口径与页面一致（区域角色只看本区域）。 */
 export function visibleRisks(
   state: InspectionState,
   actor: InspectionActor,
@@ -270,11 +270,11 @@ const riskCitation = (
 });
 
 const runHeadline = (run: InspectionRunRecord) =>
-  `${dayOf(run.at)} ${clockOf(run.at)} ${run.trigger === "manual" ? "手动巡检" : "自动巡检"}` +
+  `${dayOf(run.at)} ${clockOf(run.at)} ${run.trigger === "manual" ? "手动审计" : "自动审计"}` +
   ` · 扫了 ${run.taskCount} 项任务` +
   (run.repeatCount > 1 ? ` · 结论没变（连续 ${run.repeatCount} 次）` : "");
 
-/** 一次巡检里，某个任务命中的最严重结论。 */
+/** 一次审计里，某个任务命中的最严重结论。 */
 const conclusionOf = (risks: InspectionRisk[], taskId: string) => {
   const hit = risks.filter((risk) => risk.taskIds.includes(taskId));
   if (!hit.length) return null;
@@ -333,8 +333,8 @@ const followUpDefaults = [
 ];
 
 /**
- * 自动巡检频次：问就回答当前设置；带「改成 / 设置」这类说法时给出一条写操作，
- * 界面收到 action 后落到巡检策略上（Agent 自己不改数据）。
+ * 自动审计频次：问就回答当前设置；带「改成 / 设置」这类说法时给出一条写操作，
+ * 界面收到 action 后落到审计策略上（Agent 自己不改数据）。
  */
 const cadenceAnswer = (
   state: InspectionState,
@@ -349,38 +349,38 @@ const cadenceAnswer = (
   const changing = apply && wanted !== null && minutes !== current;
   const paragraphs = changing
     ? [
-        `自动巡检已经改成每 ${formatCadence(minutes)}一次（原来是每 ${formatCadence(current)}一次）。`,
+        `自动审计已经改成每 ${formatCadence(minutes)}一次（原来是每 ${formatCadence(current)}一次）。`,
         "到点会自动重算一遍；结论没变就合并进同一条记录，只有出现新增或已解决才会记新批次。",
       ]
     : [
-        `现在是每 ${formatCadence(current)}自动巡检一次，每次都会重新扫一遍当前周期的任务。`,
+        `现在是每 ${formatCadence(current)}自动审计一次，每次都会重新扫一遍当前周期的任务。`,
         "结论没变只更新时间，不刷屏；想调就说一句「改成每 2 小时一次」。",
       ];
   return {
     id: changing ? "cadence:set" : "cadence",
     intent: "cadence",
     title: changing
-      ? `自动巡检改为每 ${formatCadence(minutes)}一次`
-      : `自动巡检：每 ${formatCadence(current)}一次`,
+      ? `自动审计改为每 ${formatCadence(minutes)}一次`
+      : `自动审计：每 ${formatCadence(current)}一次`,
     paragraphs,
     bullets: [],
     citations: [
-      { label: `当前策略 v${state.policy.version}`, ref: "巡检策略 · 自动巡检间隔" },
+      { label: `当前策略 v${state.policy.version}`, ref: "审计策略 · 自动审计间隔" },
     ],
-    followUps: ["最近巡检了哪些任务？", "现在有哪些任务需要我处理？"],
+    followUps: ["最近审计了哪些任务？", "现在有哪些任务需要我处理？"],
     taskIds: [],
     action: changing ? { type: "set-cadence", minutes } : undefined,
   };
 };
 
 const asksCadence = (text: string) =>
-  /(巡检|检查|扫)/.test(text) &&
+  /(审计|检查|扫)/.test(text) &&
   /(多久|多长时间|几小时|几分钟|几次|频率|间隔|频率是多少|多久一次)/.test(text);
 
 const helpAnswer = (): AgentAnswer => ({
   id: "help",
   intent: "help",
-  title: "我只回答巡检范围内的问题",
+  title: "我只回答审计范围内的问题",
   paragraphs: ["换个问法试试，例如："],
   bullets: [],
   citations: [],
@@ -414,8 +414,8 @@ const recentAnswer = (
     return {
       id: "recent:empty",
       intent: "recent",
-      title: "还没有巡检记录",
-      paragraphs: ["点右上角「立即巡检」，就会留下第一条记录。"],
+      title: "还没有审计记录",
+      paragraphs: ["点右上角「立即审计」，就会留下第一条记录。"],
       bullets: [],
       citations: [],
       followUps: followUpDefaults,
@@ -444,7 +444,7 @@ const recentAnswer = (
   return {
     id: `recent:${latest.id}`,
     intent: "recent",
-    title: "最近一次巡检",
+    title: "最近一次审计",
     paragraphs: [
       `${runHeadline(latest)}。`,
       `扫到的任务：${kinds.join("、") || "当前没有可见任务"}，共 ${tasks.length} 项。`,
@@ -453,7 +453,7 @@ const recentAnswer = (
     bullets: tasks.slice(0, 8).map((task) => plainTaskLine(state, task, risks, aggregates)),
     citations: [
       {
-        label: `巡检记录 · ${dayOf(latest.at)} ${clockOf(latest.at)}`,
+        label: `审计记录 · ${dayOf(latest.at)} ${clockOf(latest.at)}`,
         ref: latest.actorName,
       },
     ],
@@ -475,7 +475,7 @@ const pendingAnswer = (
       paragraphs: ["本周的问题都已解决或标记例外。"],
       bullets: [],
       citations: [],
-      followUps: ["最近巡检了哪些任务？", "人均要做多少分钟？"],
+      followUps: ["最近审计了哪些任务？", "人均要做多少分钟？"],
       taskIds: [],
     };
   }
@@ -502,7 +502,7 @@ const pendingAnswer = (
     followUps: [
       "这一周哪些任务重合了？",
       "人均要做多少分钟？",
-      "上次巡检到现在有什么变化？",
+      "上次审计到现在有什么变化？",
     ],
     taskIds: picked.flatMap((risk) => risk.taskIds.slice(0, 1)),
   };
@@ -522,7 +522,7 @@ const topRiskAnswer = (
       paragraphs: ["任务量、时间安排和下发对象都没问题，可以按计划执行。"],
       bullets: [],
       citations: [],
-      followUps: ["这一周哪些任务重合了？", "最近巡检了哪些任务？"],
+      followUps: ["这一周哪些任务重合了？", "最近审计了哪些任务？"],
       taskIds: [],
     };
   }
@@ -575,7 +575,7 @@ const overlapAnswer = (
       ],
       bullets: [],
       citations: [],
-      followUps: ["人均要做多少分钟？", "最近巡检了哪些任务？"],
+      followUps: ["人均要做多少分钟？", "最近审计了哪些任务？"],
       taskIds: [],
     };
   }
@@ -697,7 +697,7 @@ const dataGapAnswer = (
         taskId: item.task.id,
       })),
     ),
-    followUps: ["现在有哪些任务需要我处理？", "最近巡检了哪些任务？"],
+    followUps: ["现在有哪些任务需要我处理？", "最近审计了哪些任务？"],
     taskIds: tasks.map((item) => item.task.id),
   };
 };
@@ -825,7 +825,7 @@ const changesAnswer = (
     citations: previous
       ? [
           {
-            label: "巡检记录对比",
+            label: "审计记录对比",
             ref: `${dayOf(previous.at)} ${clockOf(previous.at)} → ${dayOf(latest.at)} ${clockOf(latest.at)}`,
           },
         ]
@@ -860,7 +860,7 @@ const taskWhyAnswer = (
       ],
       bullets: gaps.map((gap) => `缺 ${gap.field}`),
       citations: [],
-      followUps: ["哪些任务数据不全？", "最近巡检了哪些任务？"],
+      followUps: ["哪些任务数据不全？", "最近审计了哪些任务？"],
       taskIds: [task.id],
     };
   }
@@ -891,7 +891,7 @@ const taskWhyAnswer = (
 };
 
 /**
- * 本地确定性回答：只根据当前巡检状态与工作记录生成，说法保持业务化。
+ * 本地确定性回答：只根据当前审计状态与工作记录生成，说法保持业务化。
  * 复杂问题不猜：识别不了时返回可回答范围。
  */
 export function localInspectionAnswer(
@@ -911,7 +911,7 @@ export function localInspectionAnswer(
 
   if (askedTask && asksWhy)
     return taskWhyAnswer(state, risks, askedTask, today, actor);
-  // 自动巡检频次：可以问，也可以直接让 Agent 改
+  // 自动审计频次：可以问，也可以直接让 Agent 改
   const cadenceChange =
     parseCadenceMinutes(text) !== null &&
     /(改|设置|设成|调|换|变成|定成|调整)/.test(text);
@@ -929,7 +929,7 @@ export function localInspectionAnswer(
     return topRiskAnswer(state, risks);
   if (/需要我|要处理|待处理|待办|还没|没处理|要做什么|下一步/.test(text))
     return pendingAnswer(state, risks);
-  if (/巡检|扫过|检查过|看过/.test(text))
+  if (/审计|扫过|检查过|看过/.test(text))
     return recentAnswer(state, actor, risks, today);
   if (matchRegion(state, text) || /区域|南区|北区|门店|巴厘|泗水|有哪些任务/.test(text))
     return regionAnswer(state, actor, risks, text, today);

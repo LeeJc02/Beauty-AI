@@ -79,7 +79,7 @@ export function RegionBurdenTab({
     if (!actor.hq) setOpenRegionId(ranked[0]?.regionId ?? null);
   }, [actor, ranked]);
 
-  // 从巡检总览结论跳进来时定位到对应任务
+  // 从审计总览结论跳进来时定位到对应任务
   useEffect(() => {
     if (!selectedTaskId) return;
     const owner = ranked.find((item) =>

@@ -1,7 +1,7 @@
 /**
- * 培训巡检 Agent · 领域模型
+ * 培训审计 Agent · 领域模型
  *
- * 学习 / 练习 / 考试（以及接入中的媒体采集）任务统一转换为巡检任务对象：
+ * 学习 / 练习 / 考试（以及接入中的媒体采集）任务统一转换为审计任务对象：
  * 内容资源、分发范围、实际人员快照、时间规则、任务权重、三级负责人、任务关系与执行结果。
  * 所有 Agent 结论都必须能追溯到规则编号与原始任务字段，模型不修改数值与人员范围。
  */
@@ -152,7 +152,7 @@ export interface InspectionTask {
   id: string;
   title: string;
   kind: TaskKind;
-  /** 内容涉及的品类（新品 / 敏感肌 / 彩妆…），自定义巡检可以按品类盯。 */
+  /** 内容涉及的品类（新品 / 敏感肌 / 彩妆…），自定义审计可以按品类盯。 */
   categories: string[];
   origin: TaskOrigin;
   sourceId: string;
@@ -188,7 +188,7 @@ export interface InspectionTask {
 /** 规则参数：全部可追溯，Agent 只解释不修改。 */
 export interface InspectionPolicy {
   version: number;
-  /** 自动巡检间隔（分钟）：界面上显示成「每 N 分钟 / 每 N 小时一次」，可以跟 Agent 对话调整。 */
+  /** 自动审计间隔（分钟）：界面上显示成「每 N 分钟 / 每 N 小时一次」，可以跟 Agent 对话调整。 */
   autoRunMinutes: number;
   /** 区域未确认容量时的全局参考容量（分钟/人/周）。 */
   weeklyCapacityMinutes: number;
@@ -327,7 +327,7 @@ export interface DispositionRecord {
   exceptionId: string | null;
 }
 
-/** 巡检批次内的一条风险变化（新增 / 解除）。 */
+/** 审计批次内的一条风险变化（新增 / 解除）。 */
 export interface InspectionRunChange {
   key: string;
   ruleId: string;
@@ -337,7 +337,7 @@ export interface InspectionRunChange {
   taskIds: string[];
 }
 
-/** 巡检批次的风险等级变化。 */
+/** 审计批次的风险等级变化。 */
 export interface InspectionRunLevelChange {
   key: string;
   ruleId: string;
@@ -346,7 +346,7 @@ export interface InspectionRunLevelChange {
   to: RiskLevel;
 }
 
-/** 批次内单个任务的巡检结论，保证历史批次可独立复述。 */
+/** 批次内单个任务的审计结论，保证历史批次可独立复述。 */
 export interface InspectionRunTaskResult {
   taskId: string;
   /** null 表示该任务本次没有命中规则。 */
@@ -362,7 +362,7 @@ export interface InspectionRunSnapshot {
 }
 
 /**
- * 巡检工作记录：一次巡检做了什么。
+ * 审计工作记录：一次审计做了什么。
  * 结论无变化时不新增记录，只把 lastSeenAt 与 repeatCount 往前推；
  * 出现新增 / 解除 / 等级变化 / 覆盖任务变化或跨天时新增一条。
  */
@@ -370,12 +370,12 @@ export interface InspectionRunRecord {
   id: string;
   /** 批次首次记录时间（ISO）。 */
   at: string;
-  /** 同一结论被连续巡检到的最近时间（ISO）。 */
+  /** 同一结论被连续审计到的最近时间（ISO）。 */
   lastSeenAt: string;
-  /** 连续巡检到同一结论的次数（含首次）。 */
+  /** 连续审计到同一结论的次数（含首次）。 */
   repeatCount: number;
   trigger: "manual" | "auto";
-  /** 本次覆盖的巡检周期。 */
+  /** 本次覆盖的审计周期。 */
   weeks: string[];
   taskIds: string[];
   taskCount: number;
@@ -383,7 +383,7 @@ export interface InspectionRunRecord {
   dataGapTaskCount: number;
   /** 本次评估命中的风险快照。 */
   snapshot: InspectionRunSnapshot;
-  /** 逐任务结论，展开批次即可核对这一次巡检了哪些任务、结论是什么。 */
+  /** 逐任务结论，展开批次即可核对这一次审计了哪些任务、结论是什么。 */
   taskResults: InspectionRunTaskResult[];
   added: InspectionRunChange[];
   resolved: InspectionRunChange[];
@@ -412,7 +412,7 @@ export interface InspectionState {
   risks: RiskRecord[];
   exceptions: RiskException[];
   dispositions: DispositionRecord[];
-  /** 巡检工作记录：按批次记录巡检了哪些任务、发现了什么。 */
+  /** 审计工作记录：按批次记录审计了哪些任务、发现了什么。 */
   inspectionRuns: InspectionRunRecord[];
   lastRunAt: string | null;
   sourceSyncedAt: Record<string, string>;

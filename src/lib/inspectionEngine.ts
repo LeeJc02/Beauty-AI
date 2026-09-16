@@ -1,5 +1,5 @@
 /**
- * 培训巡检 Agent · 计算与状态转换层
+ * 培训审计 Agent · 计算与状态转换层
  *
  * 不依赖 React 与模型：统一把学习 / 练习 / 考试任务转换成员工级负荷，
  * 按 A 负荷 / B 时间 / C 人群 / D 内容关系 / E 执行 / F 数据不足 输出结构化风险。
@@ -80,9 +80,9 @@ export const percentile = (values: number[], ratio: number) => {
 
 export const round = (value: number) => Math.round(value);
 
-/* ------------------------------------------------------- 自动巡检频次 */
+/* ------------------------------------------------------- 自动审计频次 */
 
-/** 没设置过时的默认自动巡检间隔（分钟）。 */
+/** 没设置过时的默认自动审计间隔（分钟）。 */
 export const AUTO_RUN_MINUTES_DEFAULT = 30;
 export const AUTO_RUN_MINUTES_MIN = 1;
 export const AUTO_RUN_MINUTES_MAX = 24 * 60;
@@ -708,7 +708,7 @@ export function evaluateWeek(
       regionIds: regionsOf(task),
       reason: `${task.title}缺少 ${gaps.map((gap) => gap.field).join("、")}，无法据此判断安排是否合理。`,
       evidence: gaps.map((gap) => evidence(`缺少字段：${gap.field}`, gap.ref)),
-      suggestion: `补齐${gaps.map((gap) => gap.field).join("、")}后重新巡检；补齐前不输出合理或不合理结论。`,
+      suggestion: `补齐${gaps.map((gap) => gap.field).join("、")}后重新审计；补齐前不输出合理或不合理结论。`,
       impact: {
         text: "补齐字段后 Agent 才能计算负荷、频次与人群偏差。",
         affectedPeople: 0,
@@ -739,7 +739,7 @@ export function evaluateWeek(
           `区域「${region.name}」· 容量基线`,
         ),
       ],
-      suggestion: "确认区域每人每周培训容量，或积累四个完整周期后重新巡检。",
+      suggestion: "确认区域每人每周培训容量，或积累四个完整周期后重新审计。",
       impact: {
         text: "缺少基线时只输出参考水平，不作为违规结论。",
         affectedPeople: region.history.length,
@@ -2161,7 +2161,7 @@ export function evaluateRisks(
     .sort(compareRisks);
 }
 
-/* ----------------------------------------------- 巡检运行与状态机 */
+/* ----------------------------------------------- 审计运行与状态机 */
 
 /**
  * 同一批结论里可能出现同 key 的双向记录（例如 C3 同源重复：A→B 与 B→A 会算出同一个 key），
@@ -2203,7 +2203,7 @@ export function pendingException(
   );
 }
 
-/** 重新巡检：把当前事实与风险台账对齐，保留历史、复发与例外状态。 */
+/** 重新审计：把当前事实与风险台账对齐，保留历史、复发与例外状态。 */
 export function runInspection(
   input: InspectionState,
   now = new Date(),
@@ -2252,7 +2252,7 @@ export function runInspection(
         history: [
           {
             at,
-            actor: "巡检 Agent",
+            actor: "审计 Agent",
             text: `规则 ${risk.ruleId}（${risk.ruleName}）命中；策略 v${state.policy.version}，数据 v${state.revision}。`,
           },
         ],
@@ -2278,14 +2278,14 @@ export function runInspection(
       record.resolvedAt = null;
       record.history.push({
         at,
-        actor: "巡检 Agent",
+        actor: "审计 Agent",
         text: `相同问题再次出现（第 ${record.recurrence + 1} 次），重新开启。`,
       });
     }
     if (record.status !== status) {
       record.history.push({
         at,
-        actor: "巡检 Agent",
+        actor: "审计 Agent",
         text: `状态更新：${record.status} → ${status}。`,
       });
       record.status = status;
@@ -2307,7 +2307,7 @@ export function runInspection(
     record.lastSeenAt = at;
     record.history.push({
       at,
-      actor: "巡检 Agent",
+      actor: "审计 Agent",
       text: "重算后规则不再命中，问题关闭。",
     });
   }
@@ -2322,7 +2322,7 @@ export function runInspection(
         record.status = "待处理";
         record.history.push({
           at,
-          actor: "巡检 Agent",
+          actor: "审计 Agent",
           text: `例外 ${exception.id} 已于 ${exception.expiresOn} 到期，恢复为待处理。`,
         });
       }
@@ -2371,16 +2371,16 @@ const taskResultsOf = (
 const sameTaskSet = (left: string[], right: string[]) =>
   left.length === right.length && right.every((id) => left.includes(id));
 
-/** 这次巡检实际评估过的任务：停用与已合并任务不参与规则。 */
+/** 这次审计实际评估过的任务：停用与已合并任务不参与规则。 */
 export const inspectedTaskIds = (state: InspectionState) =>
   state.tasks
     .filter((task) => task.status !== "disabled" && !task.mergedIntoId)
     .map((task) => task.id);
 
 /**
- * 把一次巡检写入工作记录。
+ * 把一次审计写入工作记录。
  * 结论没有变化时不新增条目，只把最近一条的 lastSeenAt 与 repeatCount 往前推；
- * 手动巡检、出现变化、覆盖任务变化或跨天时新增一条，最多保留 INSPECTION_RUN_LIMIT 条。
+ * 手动审计、出现变化、覆盖任务变化或跨天时新增一条，最多保留 INSPECTION_RUN_LIMIT 条。
  */
 function recordInspectionRun(
   state: InspectionState,
@@ -2484,8 +2484,8 @@ function recordInspectionRun(
     added,
     resolved,
     levelChanged,
-    actorName: options.actorName ?? "巡检 Agent",
-    roleLabel: options.roleLabel ?? "自动巡检",
+    actorName: options.actorName ?? "审计 Agent",
+    roleLabel: options.roleLabel ?? "自动审计",
   };
   state.inspectionRuns = [...state.inspectionRuns, record].slice(
     -INSPECTION_RUN_LIMIT,
@@ -2923,10 +2923,10 @@ export function applyDisposition(
       remainingRules,
       addedRules,
       summary: resolvedRules.length
-        ? `重新巡检：${resolvedRules.length} 条规则不再命中${remainingRules.length ? `；${remainingRules.length} 条规则仍需处理` : ""}。`
+        ? `重新审计：${resolvedRules.length} 条规则不再命中${remainingRules.length ? `；${remainingRules.length} 条规则仍需处理` : ""}。`
         : addedRules.length
-          ? `重新巡检：新增 ${addedRules.join("、")}，需要继续调整。`
-          : "重新巡检：规则仍然命中，问题保持开启。",
+          ? `重新审计：新增 ${addedRules.join("、")}，需要继续调整。`
+          : "重新审计：规则仍然命中，问题保持开启。",
     },
     handoverTo,
     exceptionId,

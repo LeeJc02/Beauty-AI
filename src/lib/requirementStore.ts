@@ -1,7 +1,7 @@
 /**
- * 培训巡检 · 自定义巡检需求 · 本地存储
+ * 培训审计 · 自定义审计需求 · 本地存储
  *
- * 和主巡检存档分开存（独立 key），互不影响：
+ * 和主审计存档分开存（独立 key），互不影响：
  * 主存档升级演示数据时，用户自己建的需求不该被重置掉。
  * 单条记录缺字段就跳过，不让整页白屏。
  */
@@ -66,7 +66,7 @@ function initial(): InspectionRequirement[] {
       const list = Array.isArray(saved?.requirements) ? saved.requirements : [];
       const valid = list.filter(isRequirement);
       if (valid.length !== list.length)
-        storageError = "有几条自定义巡检的记录不完整，已跳过。";
+        storageError = "有几条自定义审计的记录不完整，已跳过。";
       current = valid.map((item) =>
         refreshRequirement({
           ...item,
@@ -77,7 +77,7 @@ function initial(): InspectionRequirement[] {
       );
     }
   } catch {
-    storageError = "自定义巡检的本地记录读取失败，已跳过。";
+    storageError = "自定义审计的本地记录读取失败，已跳过。";
   }
   current ??= [];
   return current;
@@ -132,12 +132,12 @@ export function createRequirement(
     return {
       ok: false,
       requirement: null,
-      error: `最多同时保留 ${MAX_REQUIREMENTS} 个自定义巡检，请先在标签页上关掉不用的。`,
+      error: `最多同时保留 ${MAX_REQUIREMENTS} 个自定义审计，请先在标签页上关掉不用的。`,
     };
   const requirement = refreshRequirement(
     {
       id: `req-${now.getTime()}-${existing.length}`,
-      name: normalizeRequirementName(draft.name) || "自定义巡检",
+      name: normalizeRequirementName(draft.name) || "自定义审计",
       aspects: draft.aspects,
       categories: draft.categories.filter((item) => !!item),
       regionId: draft.regionId,

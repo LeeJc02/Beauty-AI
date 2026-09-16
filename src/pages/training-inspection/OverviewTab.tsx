@@ -24,6 +24,7 @@ import {
   todayLabel,
 } from "./shared";
 import { AgentPanel } from "./AgentPanel";
+import { AuditConsole } from "./AuditConsole";
 import { RunTimeline } from "./RunTimeline";
 
 /** 区域多时只列前两个，避免一行里堆满区域名。 */
@@ -79,6 +80,7 @@ export function OverviewTab({
   onOpenTask,
   onFocusTask,
   onCreatedRequirement,
+  onToast,
 }: {
   state: InspectionState;
   actor: InspectionActor;
@@ -88,6 +90,7 @@ export function OverviewTab({
   onOpenTask: (taskId: string) => void;
   onFocusTask: (taskId: string) => void;
   onCreatedRequirement: (id: string) => void;
+  onToast: (text: string) => void;
 }) {
   const latest = state.inspectionRuns.at(-1);
   const openRisks = uniqueRisks(
@@ -185,16 +188,18 @@ export function OverviewTab({
     .replace("-", "/")}`;
   return (
     <div className="grid gap-4">
-      <AgentPanel
+      <AuditConsole
         state={state}
         actor={actor}
+        week={week}
+        today={today}
         onFocusTask={onFocusTask}
-        onCreatedRequirement={onCreatedRequirement}
+        onToast={onToast}
       />
 
       <div className="rounded-xl bg-card p-3.5 ring-1 ring-foreground/10">
         <SectionHeading
-          title="最近一次巡检"
+          title="最近一次审计"
           hint={`周期 ${weekLabel} · ${todayLabel(today)}`}
           extra={
             <div className="grid justify-items-end gap-1 text-[11px] text-muted-foreground">
@@ -208,7 +213,7 @@ export function OverviewTab({
                           : "bg-muted text-muted-foreground ring-border"
                       }
                     >
-                      {latest.trigger === "manual" ? "手动巡检" : "自动巡检"}
+                      {latest.trigger === "manual" ? "手动审计" : "自动审计"}
                     </Chip>
                     <span className="font-semibold text-foreground">
                       {jakartaStamp(latest.at)}
@@ -221,12 +226,12 @@ export function OverviewTab({
                     </span>
                   </>
                 ) : (
-                  <span>还没有巡检记录</span>
+                  <span>还没有审计记录</span>
                 )}
               </span>
               <span className="inline-flex flex-wrap items-center justify-end gap-1">
                 <RefreshCw size={11} /> 每{" "}
-                {formatCadence(state.policy.autoRunMinutes)}自动巡检一次，有变化才记新批次
+                {formatCadence(state.policy.autoRunMinutes)}自动审计一次，有变化才记新批次
                 <span className="text-muted-foreground/70">
                   （想改对 Agent 说「改成每 2 小时一次」）
                 </span>
@@ -294,7 +299,7 @@ export function OverviewTab({
             )}
           </div>
         ) : (
-          <EmptyState title="还没有巡检记录" hint="点右上角「立即巡检」开始。" />
+          <EmptyState title="还没有审计记录" hint="点右上角「立即审计」开始。" />
         )}
       </div>
 
@@ -358,13 +363,20 @@ export function OverviewTab({
         />
       </div>
 
-      <RunTimeline
-        state={state}
-        actor={actor}
-        onFocusTask={onFocusTask}
-        onOpenTask={onOpenTask}
-      />
-
+      <div className="grid gap-3 xl:grid-cols-2">
+        <RunTimeline
+          state={state}
+          actor={actor}
+          onFocusTask={onFocusTask}
+          onOpenTask={onOpenTask}
+        />
+        <AgentPanel
+          state={state}
+          actor={actor}
+          onFocusTask={onFocusTask}
+          onCreatedRequirement={onCreatedRequirement}
+        />
+      </div>
     </div>
   );
 }

@@ -1,7 +1,7 @@
 /**
- * 培训巡检 · 任务调整建议（站内信草稿）
+ * 培训审计 · 任务调整建议（站内信草稿）
  *
- * 巡检只给建议、不直接改任务：根据当前周期的巡检结论和排期，
+ * 审计只给建议、不直接改任务：根据当前周期的审计结论和排期，
  * 生成一封发给任务创建者的站内信草稿。这里用本地规则模拟「模型生成」，
  * 接入真实模型时只替换 buildAdjustmentSuggestion 的实现。
  */
@@ -130,7 +130,7 @@ export function buildAdjustmentSuggestion(
   if (!problems.length) problems.push("这一周没有命中问题，排期安排正常。");
   if (!actions.length)
     actions.push(
-      "可以先保持现在的安排；下次巡检如果发现问题再调整。",
+      "可以先保持现在的安排；下次审计如果发现问题再调整。",
     );
 
   const impactParts = [
@@ -143,12 +143,12 @@ export function buildAdjustmentSuggestion(
   return {
     recipient,
     title: `关于「${task.title}」的调整建议`,
-    intro: `巡检发现这项任务${
+    intro: `审计发现这项任务${
       risks.length ? `有 ${risks.length} 个问题` : "本周没有问题"
     }，建议这样处理：`,
     problems,
     actions,
     impact: impactParts.join(" · "),
-    note: "由巡检 Agent 生成，供创建者参考；是否调整由创建者决定。",
+    note: "由审计 Agent 生成，供创建者参考；是否调整由创建者决定。",
   };
 }

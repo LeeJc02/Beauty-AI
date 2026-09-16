@@ -1,5 +1,5 @@
 /**
- * 培训巡检 Agent · 本地演示数据
+ * 培训审计 Agent · 本地演示数据
  *
  * 全部为演示数据，保存在 localStorage。所有判断口径来自 inspectionEngine 的规则，
  * 数据本身不预设结论：风险由规则从任务字段、人员快照与完成回传中推导。
@@ -886,7 +886,7 @@ const changeOfRun = (risk: InspectionRisk): InspectionRunChange => ({
 });
 
 /**
- * 预置近 7 天的巡检批次，让管理者打开页面就能看到 Agent 陆续巡检了哪些任务。
+ * 预置近 7 天的审计批次，让管理者打开页面就能看到 Agent 陆续审计了哪些任务。
  * 批次按时间顺序累积：后续批次的快照包含此前发现且仍未解除的问题。
  */
 export function seedInspectionRuns(state: InspectionState): InspectionRunRecord[] {
@@ -953,8 +953,8 @@ export function seedInspectionRuns(state: InspectionState): InspectionRunRecord[
       added,
       resolved,
       levelChanged: top ? [top] : [],
-      actorName: "巡检 Agent",
-      roleLabel: "自动巡检",
+      actorName: "审计 Agent",
+      roleLabel: "自动审计",
     };
   });
 }

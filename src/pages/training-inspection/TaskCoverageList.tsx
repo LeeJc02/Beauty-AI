@@ -34,7 +34,7 @@ const fieldClass =
 
 type Conclusion = RiskLevel | "pass";
 
-/** 任务覆盖清单：每个任务一行，说明最近巡检时间、结论、命中规则与影响范围。 */
+/** 任务覆盖清单：每个任务一行，说明最近审计时间、结论、命中规则与影响范围。 */
 export function TaskCoverageList({
   state,
   actor,
@@ -133,7 +133,7 @@ export function TaskCoverageList({
   return (
     <div className="rounded-xl bg-card p-3.5 ring-1 ring-foreground/10">
       <SectionHeading
-        title="巡检过的任务"
+        title="审计过的任务"
         hint={`${counts.all} 项任务 · ${counts.gaps} 项待补字段`}
         extra={
           <label className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
@@ -250,7 +250,7 @@ export function TaskCoverageList({
                     </span>
                     <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[10.5px] text-muted-foreground">
                       <span>
-                        巡检 {lastSeen ? lastSeen.slice(5, 16).replace("T", " ") : "—"}
+                        审计 {lastSeen ? lastSeen.slice(5, 16).replace("T", " ") : "—"}
                       </span>
                       <span>
                         {row.task.owners.regionOwnerName ||

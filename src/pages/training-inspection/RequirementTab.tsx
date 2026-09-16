@@ -68,7 +68,7 @@ const stamp = (iso: string) =>
     hour12: false,
   }).format(new Date(iso));
 
-/** 自定义巡检需求：状态摘要 + 现在关注的问题 + 运行记录。 */
+/** 自定义审计需求：状态摘要 + 现在关注的问题 + 运行记录。 */
 export function RequirementTab({
   state,
   actor,
@@ -117,8 +117,8 @@ export function RequirementTab({
       const run = next.runs.at(-1)!;
       setMessage(
         run.repeatCount > 1
-          ? `巡检完成：扫了 ${run.taskCount} 项任务，结论和上次一样。`
-          : `巡检完成：扫了 ${run.taskCount} 项任务，看到 ${run.issueCount} 项问题。`,
+          ? `审计完成：扫了 ${run.taskCount} 项任务，结论和上次一样。`
+          : `审计完成：扫了 ${run.taskCount} 项任务，看到 ${run.issueCount} 项问题。`,
       );
     }, 320);
   };
@@ -180,7 +180,7 @@ export function RequirementTab({
               ) : (
                 <RefreshCw size={13} />
               )}
-              {busy ? "巡检中" : "立即巡检"}
+              {busy ? "审计中" : "立即审计"}
             </Button>
             {status === "active" ? (
               <Button variant="outline" size="sm" onClick={toggleStatus}>
@@ -221,7 +221,7 @@ export function RequirementTab({
               ? latest.unknownPeople
                 ? `另有 ${latest.unknownPeople} 人缺预计时长，不计入`
                 : "按问题命中的人去重"
-              : "还没跑过，点「立即巡检」看看"
+              : "还没跑过，点「立即审计」看看"
           }
         />
         <Metric
@@ -270,7 +270,7 @@ export function RequirementTab({
             ))
           ) : (
             <EmptyState
-              title="这个巡检目前没有问题"
+              title="这个审计目前没有问题"
               hint={`${aspectLabelOf(requirement.aspects, requirement.categories)}这一类，当前周期都没命中。`}
             />
           )}
@@ -295,7 +295,7 @@ export function RequirementTab({
           ) : (
             <EmptyState
               title="还没有运行记录"
-              hint="到下次周期时间会自动跑，也可以现在点「立即巡检」。"
+              hint="到下次周期时间会自动跑，也可以现在点「立即审计」。"
             />
           )}
         </div>
@@ -305,7 +305,7 @@ export function RequirementTab({
         <DialogContent className="inspection-modal max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <AlertTriangle size={16} /> 关掉这个巡检？
+              <AlertTriangle size={16} /> 关掉这个审计？
             </DialogTitle>
           </DialogHeader>
           <p className="text-[12px] leading-relaxed text-muted-foreground">
@@ -324,7 +324,7 @@ export function RequirementTab({
                 onDeleted();
               }}
             >
-              删除这个巡检
+              删除这个审计
             </Button>
           </div>
         </DialogContent>
@@ -427,7 +427,7 @@ function RunRow({ run }: { run: RequirementRun; key?: React.Key }) {
               }
             >
               <Clock size={10} />
-              {run.trigger === "manual" ? "手动巡检" : "自动巡检"}
+              {run.trigger === "manual" ? "手动审计" : "自动审计"}
             </Chip>
             <span className="text-muted-foreground">
               扫了 {run.taskCount} 项任务 · 看到 {run.issueCount} 项问题 · 影响{" "}
@@ -436,7 +436,7 @@ function RunRow({ run }: { run: RequirementRun; key?: React.Key }) {
           </span>
           <span className="text-[10.5px] text-muted-foreground">
             {run.repeatCount > 1
-              ? `结论没变，连续巡检 ${run.repeatCount} 次（首次 ${stamp(run.at)}）`
+              ? `结论没变，连续审计 ${run.repeatCount} 次（首次 ${stamp(run.at)}）`
               : changes.length
                 ? `${changes.join(" · ")}；结论有变化`
                 : "首次运行"}

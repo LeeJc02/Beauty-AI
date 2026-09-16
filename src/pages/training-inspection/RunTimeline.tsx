@@ -34,7 +34,7 @@ const LEVEL_ORDER: Record<RiskLevel, number> = {
 
 const stamp = (iso: string) => iso.slice(5, 16).replace("T", " ");
 
-/** 巡检批次：只回答「这次有没有异常、异常任务是什么」，明细放进弹窗。 */
+/** 审计批次：只回答「这次有没有异常、异常任务是什么」，明细放进弹窗。 */
 export function RunTimeline({
   state,
   actor,
@@ -50,7 +50,7 @@ export function RunTimeline({
   return (
     <div className="rounded-xl bg-card p-3.5 ring-1 ring-foreground/10">
       <SectionHeading
-        title="巡检工作记录"
+        title="审计工作记录"
         hint="每条只记有没有异常、异常的是哪些任务；结论没变就合并，只更新时间"
         extra={
           <Chip tone="bg-secondary text-secondary-foreground ring-primary/20">
@@ -73,7 +73,7 @@ export function RunTimeline({
               />
             ))
         ) : (
-          <EmptyState title="还没有巡检记录" hint="点右上角「立即巡检」开始。" />
+          <EmptyState title="还没有审计记录" hint="点右上角「立即审计」开始。" />
         )}
       </div>
     </div>
@@ -177,7 +177,7 @@ function RunRow({
                     : "bg-muted text-muted-foreground ring-border"
                 }
               >
-                {record.trigger === "manual" ? "手动巡检" : "自动巡检"}
+                {record.trigger === "manual" ? "手动审计" : "自动审计"}
               </Chip>
               <Chip tone="bg-muted text-muted-foreground ring-border">
                 覆盖 {results.length} 项任务
@@ -207,7 +207,7 @@ function RunRow({
                 ? `异常任务：${preview.join("、")}${
                     anomalies.length > preview.length ? ` 等 ${anomalies.length} 项` : ""
                   }`
-                : "本次巡检未发现异常任务。"}
+                : "本次审计未发现异常任务。"}
             </span>
           </span>
         </button>
