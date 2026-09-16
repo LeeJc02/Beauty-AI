@@ -77,6 +77,7 @@ export function OverviewTab({
   week,
   today,
   risks,
+  showConsole = true,
   onOpenTask,
   onFocusTask,
   onCreatedRequirement,
@@ -87,6 +88,8 @@ export function OverviewTab({
   week: string;
   today: string;
   risks: InspectionRisk[];
+  /** 归档视图不重复渲染 Agent 对话（那里已是一个独立视图）。 */
+  showConsole?: boolean;
   onOpenTask: (taskId: string) => void;
   onFocusTask: (taskId: string) => void;
   onCreatedRequirement: (id: string) => void;
@@ -188,15 +191,16 @@ export function OverviewTab({
     .replace("-", "/")}`;
   return (
     <div className="grid gap-4">
-      <AuditConsole
-        state={state}
-        actor={actor}
-        week={week}
-        today={today}
-        onFocusTask={onFocusTask}
-        onToast={onToast}
-      />
-
+      {showConsole ? (
+        <AuditConsole
+          state={state}
+          actor={actor}
+          week={week}
+          today={today}
+          onFocusTask={onFocusTask}
+          onToast={onToast}
+        />
+      ) : null}
       <div className="rounded-xl bg-card p-3.5 ring-1 ring-foreground/10">
         <SectionHeading
           title="最近一次审计"

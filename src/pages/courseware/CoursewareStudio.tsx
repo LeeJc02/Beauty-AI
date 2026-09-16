@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
+  ArrowLeftRight,
   ArrowRight,
   ArrowUp,
   Check,
@@ -37,6 +38,7 @@ import {
   CW_STEPS,
   NONE_ANSWER,
   answerText,
+  canRetryHomework,
   coursewareFacts,
   defaultAnswers,
   isResultReady,
@@ -45,6 +47,8 @@ import {
   isWaitingForConfirmation,
   partSelectionPlan,
   resolveCoursewareTaskStatus,
+  resolveGenerationStatus,
+  resolvePartState,
   resolveProgress,
   resolveSeriesProgress,
   resolveStepIndex,
@@ -72,14 +76,18 @@ export function CoursewareStudio({
   task,
   sourcePrompt,
   busy,
+  autoConfirm = false,
   onAnswer,
   onConfirm,
   onCancel,
   onPreviewPage,
+  onRetryHomework,
 }: {
   task: CwTask;
   sourcePrompt: string;
   busy: boolean;
+  /** 入口的「直接完成」：反问答完与待确认时自动推进（1 秒后）。 */
+  autoConfirm?: boolean;
   onAnswer: (
     questions: CwQuestion[],
     answers: Record<string, string>,
@@ -98,6 +106,8 @@ export function CoursewareStudio({
   }) => void;
   onCancel: () => void;
   onPreviewPage: (pageId: string, title: string) => void;
+  /** 课件已生成、仅课后题失败时的重试入口。 */
+  onRetryHomework?: () => void;
 }) {
   const questions = waitingQuestions(task);
   const waitingForUser = questions.length > 0;
@@ -105,6 +115,8 @@ export function CoursewareStudio({
   const reviewingOutline = isReviewingOutline(task);
   const plan = partSelectionPlan(task);
   const failed = isTaskFailed(resolveCoursewareTaskStatus(task.status));
+  /** 生成中 / 失败 / 取消的标题与说明（包含「仅课后题失败」可重试的情况）。 */
+  const status = resolveGenerationStatus(task);
   const stepIndex = resolveStepIndex(task);
   const progress = resolveProgress(task);
   const summary = task.promptEnhancement?.summary;
@@ -131,6 +143,21 @@ export function CoursewareStudio({
   const [editing, setEditing] = useState("");
   const [activePart, setActivePart] = useState(1);
   const [mobileTab, setMobileTab] = useState<"chat" | "draft">("chat");
+  /** 左右面板交换：与 vue 一致，交换后记住顺序（localStorage）。 */
+  const [panelsSwapped, setPanelsSwapped] = useState(
+    () => window.localStorage.getItem("courseware-studio-panels-swapped") === "true",
+  );
+  const togglePanelsSwapped = useCallback(() => {
+    setPanelsSwapped((previous) => {
+      const next = !previous;
+      try {
+        window.localStorage.setItem("courseware-studio-panels-swapped", String(next));
+      } catch {
+        /* 隐私模式下只影响本次演示 */
+      }
+      return next;
+    });
+  }, []);
   const prevFactKeys = useRef<Set<string>>(new Set());
   const updatedFactKeys = useMemo(() => {
     const keys = new Set(facts.map((fact) => fact.key));
@@ -146,11 +173,22 @@ export function CoursewareStudio({
     prevFactKeys.current = new Set(facts.map((fact) => fact.key));
   }, [facts]);
 
-  /** 问题轮次：重新加载默认答案，保留已有选择。 */
+  /** 问题轮次：重新加载默认答案，保留已有选择；轮次变化时清空上一轮的回答。 */
   const signature = questionSignature(questions);
+  const lastRoundRef = useRef<number>(task.promptEnhancement?.clarificationRound ?? 0);
   useEffect(() => {
     if (!questions.length) return;
-    setDraft((previous) => ({ ...previous, answers: { ...defaultAnswers(questions), ...previous.answers } }));
+    const round = task.promptEnhancement?.clarificationRound ?? 0;
+    const roundChanged = lastRoundRef.current !== round;
+    lastRoundRef.current = round;
+    setDraft((previous) => ({
+      ...previous,
+      ...(roundChanged ? { answers: {}, notes: {} } : {}),
+      answers: {
+        ...defaultAnswers(questions),
+        ...(roundChanged ? {} : previous.answers),
+      },
+    }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [signature]);
 
@@ -201,38 +239,159 @@ export function CoursewareStudio({
   const currentRound = task.promptEnhancement?.clarificationRound ?? 0;
   const history = task.promptEnhancement?.history ?? [];
 
+  /** 草稿身份：阶段 + 轮次变化就是新的一屏；持久化与自动推进都以它为准。 */
+  const draftKey = `${
+    waitingForUser ? "interview" : waitingForConfirmation ? (reviewingOutline ? "outline" : "brief") : "run"
+  }-${currentRound}`;
+  const autoAdvancedKeyRef = useRef("");
+  const autoAdvanceTimerRef = useRef<number | undefined>(undefined);
+  const cancelAutoAdvance = useCallback(() => {
+    if (autoAdvanceTimerRef.current) window.clearTimeout(autoAdvanceTimerRef.current);
+    autoAdvanceTimerRef.current = undefined;
+  }, []);
+  const submitAnswersRef = useRef<() => void>(() => {});
+  const confirmRef = useRef<() => void>(() => {});
+
   const submitAnswers = () => {
-    if (!answersComplete) return;
+    if (!answersComplete || busy) return;
+    cancelAutoAdvance();
+    if (autoConfirm) autoAdvancedKeyRef.current = draftKey;
     onAnswer(questions, draft.answers, draft.notes);
   };
 
+  /**
+   * 确认提交：与 vue 一致拆分两种表单——
+   * 大纲阶段校页面（标题/讲解安排/内容要点）+ 至少勾一个部品；
+   * 摘要阶段只校主题、目标学员、学习目标，并把逐页大纲当作 planningOutline 发过去。
+   */
   const confirm = () => {
-    if (draft.selectedPartIndexes.length === 0 && reviewingOutline) {
-      setValidation("请至少选择一个要生成的部分。");
+    if (busy) return;
+    cancelAutoAdvance();
+    if (autoConfirm) autoAdvancedKeyRef.current = draftKey;
+    setValidation("");
+    const completePages = draft.outlines.some(
+      (outline) =>
+        !outline.title.trim() ||
+        !outline.description.trim() ||
+        !outline.keyPoints.some((point) => point.trim()),
+    );
+    if (completePages) {
+      setValidation("请补全每个章节的标题、讲解安排和内容要点。");
+      setMobileTab("draft");
+      return;
+    }
+    if (reviewingOutline) {
+      if (!draft.selectedPartIndexes.length) {
+        setValidation("请至少选择一个要生成的部分。");
+        return;
+      }
+      onConfirm({
+        ...(summary
+          ? {
+              requirementEdits: {
+                title: draft.title,
+                audience: draft.audience,
+                objective: draft.objective,
+                mustInclude: draft.mustInclude
+                  .split("\n")
+                  .map((item) => item.trim())
+                  .filter(Boolean),
+                planningOutline: [],
+              },
+            }
+          : {}),
+        outlineEdits: draft.outlines,
+        selectedPartIndexes: draft.selectedPartIndexes,
+      });
       return;
     }
     if (!draft.title.trim() || !draft.audience.trim() || !draft.objective.trim()) {
       setValidation("请补充课程主题、目标学员和学习目标。");
+      setMobileTab("draft");
       return;
     }
-    if (reviewingOutline && draft.outlines.some((outline) => !outline.title.trim())) {
-      setValidation("请补全每个章节的标题、讲解安排和内容要点。");
-      return;
-    }
-    setValidation("");
     onConfirm({
       requirementEdits: {
         title: draft.title,
         audience: draft.audience,
         objective: draft.objective,
-        mustInclude: draft.mustInclude.split("\n").filter(Boolean),
-        planningOutline: draft.outlines
-          .filter((outline) => outline.type === "slide")
-          .map(({ id, title, description, keyPoints }) => ({ id, title, description, keyPoints })),
+        mustInclude: draft.mustInclude
+          .split("\n")
+          .map((item) => item.trim())
+          .filter(Boolean),
+        planningOutline: planningOutline
+          ? draft.outlines.map(({ id, title, description, keyPoints }) => ({
+              id,
+              title,
+              description,
+              keyPoints,
+            }))
+          : [],
       },
       outlineEdits: draft.outlines,
       selectedPartIndexes: draft.selectedPartIndexes,
     });
+  };
+
+  submitAnswersRef.current = submitAnswers;
+  confirmRef.current = confirm;
+
+  /** 入口的「直接完成」：等回答 / 待确认时 1 秒后自动推进（同一屏只自动一次）。 */
+  useEffect(() => {
+    cancelAutoAdvance();
+    if (!autoConfirm || busy) return;
+    if (autoAdvancedKeyRef.current === draftKey) return;
+    if (!waitingForConfirmation && !(waitingForUser && answersComplete)) return;
+    const scheduled = draftKey;
+    autoAdvanceTimerRef.current = window.setTimeout(() => {
+      autoAdvancedKeyRef.current = scheduled;
+      if (waitingForUser && answersComplete) submitAnswersRef.current();
+      else if (waitingForConfirmation) confirmRef.current();
+    }, 1000);
+    return cancelAutoAdvance;
+  }, [
+    autoConfirm,
+    busy,
+    draftKey,
+    waitingForUser,
+    waitingForConfirmation,
+    answersComplete,
+    cancelAutoAdvance,
+  ]);
+
+  /** 草稿持久化：等待回答 / 待确认时写入 sessionStorage，刷新回来不丢编辑。 */
+  const storageKey = `courseware-studio-draft:${task.id}`;
+  useEffect(() => {
+    if (!waitingForUser && !waitingForConfirmation) return;
+    try {
+      window.sessionStorage.setItem(storageKey, JSON.stringify({ key: draftKey, draft }));
+    } catch {
+      /* 隐私模式下写不进去只影响演示 */
+    }
+  }, [draft, draftKey, storageKey, waitingForUser, waitingForConfirmation]);
+
+  useEffect(() => {
+    if (!waitingForUser && !waitingForConfirmation) return;
+    try {
+      const saved: { key?: string; draft?: Partial<Draft> } | null = JSON.parse(
+        window.sessionStorage.getItem(storageKey) || "null",
+      );
+      if (saved?.key === draftKey && saved.draft)
+        setDraft((previous) => ({ ...previous, ...saved.draft }));
+    } catch {
+      /* 解析失败就按默认草稿走 */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storageKey]);
+
+  /** ⌘/Ctrl + Enter：等回答时提交回答，待确认时确认（对齐 vue 的 handleKeydown）。 */
+  const handleKeydown = (event: React.KeyboardEvent) => {
+    if (event.nativeEvent.isComposing || event.repeat) return;
+    if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+      event.preventDefault();
+      if (waitingForUser && answersComplete && !busy) submitAnswers();
+      else if (waitingForConfirmation && !busy) confirm();
+    }
   };
 
   const activePartIndex = plan?.parts.some((part) => part.partIndex === activePart)
@@ -251,7 +410,7 @@ export function CoursewareStudio({
     draft.outlines.findIndex((outline) => outline.id === outlineId);
 
   return (
-    <section className="studio">
+    <section className="studio" onKeyDown={handleKeydown}>
       <header className="studio__header">
         <div className="studio__header-left">
           <div className="studio__identity">
@@ -276,7 +435,7 @@ export function CoursewareStudio({
                 index < stepIndex ? "complete" : ""
               }`}
             >
-              <span className="studio__step-badge">{index + 1}</span>
+              <span className="studio__step-badge">{index < stepIndex ? <Check size={12} /> : index + 1}</span>
               <span className="studio__step-label">{label}</span>
               {index < CW_STEPS.length - 1 ? (
                 <span className="studio__step-divider" aria-hidden="true" />
@@ -287,7 +446,7 @@ export function CoursewareStudio({
         <div className="studio__header-right">
           <span className={`studio__saved ${busy ? "is-busy" : ""}`}>
             {busy ? <LoaderCircle size={13} className="cw-spin" /> : <ShieldCheck size={13} />}
-            {busy ? "正在保存" : "进度已保存"}
+            {!task.id ? "尚未保存" : busy ? "正在保存" : "进度已保存"}
           </span>
           <span className="studio__stage-tag">{CW_STEPS[stepIndex]}</span>
         </div>
@@ -312,7 +471,11 @@ export function CoursewareStudio({
 
       <div className="studio__body">
         {/* ------------------------------------------------ 左：与 AI 共创 */}
-        <div className={`studio__conversation ${mobileTab !== "chat" ? "mobile-hidden" : ""}`}>
+        <div
+          className={`studio__conversation ${mobileTab !== "chat" ? "mobile-hidden" : ""} ${
+            panelsSwapped ? "is-swapped" : ""
+          }`}
+        >
           <div className="studio__coach-bar">
             <button type="button" className="studio__text-button studio__end-session" onClick={onCancel}>
               {failed ? "返回创建" : "结束本次制作"}
@@ -571,13 +734,35 @@ export function CoursewareStudio({
                     <CircleAlert size={24} />
                   </span>
                   <div className="studio__error-body">
-                    <h3>课件制作未完成</h3>
+                    <h3>{status.title}</h3>
                     <p className="studio__message" role="alert">
-                      {task.errorMessage ?? task.message ?? "本次制作未完成，请返回创建页重试。"}
+                      {task.homeworkGenerationMessage ?? status.description}
                     </p>
-                    <button type="button" className="cw-primary" style={{ marginTop: 12 }} onClick={onCancel}>
-                      <RotateCw size={15} /> 返回创建
-                    </button>
+                    {canRetryHomework(task) ? (
+                      <>
+                        <p className="studio__why">
+                          课件已生成成功，仅附加题生成失败；重试只重新生成附加题，不会重新生成课件。
+                        </p>
+                        <button
+                          type="button"
+                          className="cw-primary"
+                          style={{ marginTop: 12 }}
+                          disabled={busy}
+                          onClick={onRetryHomework}
+                        >
+                          <RotateCw size={15} /> 重试附加题
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        className="cw-primary"
+                        style={{ marginTop: 12 }}
+                        onClick={onCancel}
+                      >
+                        <RotateCw size={15} /> 返回创建
+                      </button>
+                    )}
                   </div>
                 </div>
               ) : (
@@ -586,10 +771,8 @@ export function CoursewareStudio({
                     <span className="studio__orb-pulse" />
                     <Sparkles size={22} className="cw-spin-slow" />
                   </span>
-                  <h3>{task.generation ? task.generation.phase === "pages" ? "正在逐页制作" : "正在整合课件" : "正在理解你的课程目标"}</h3>
-                  <p className="studio__message">
-                    {task.message ?? "正在整理输入内容，寻找最值得进一步聊清楚的问题。"}
-                  </p>
+                  <h3>{status.title}</h3>
+                  <p className="studio__message">{status.description}</p>
                   {task.generation?.retry?.retrying ? (
                     <p className="studio__why">已自动重试 {task.generation.retry.count} 次</p>
                   ) : null}
@@ -627,7 +810,12 @@ export function CoursewareStudio({
                                 value={resolveSeriesProgress(item, !!task.generateHomeworkSync)}
                                 max={100}
                               />
-                              <small>{CW_PART_STATES[item.status]}</small>
+                              <small>
+                                {resolvePartState(item).label}
+                                {resolvePartState(item).note
+                                  ? ` · ${resolvePartState(item).note}`
+                                  : ""}
+                              </small>
                             </div>
                           ))}
                         </div>
@@ -670,8 +858,23 @@ export function CoursewareStudio({
           ) : null}
         </div>
 
+        {/* 中间：交换左右面板（顺序会被记住，窄屏双栏叠起来时不显示） */}
+        <button
+          type="button"
+          className="studio__swap-panels"
+          aria-label="交换左右面板"
+          title="交换左右面板"
+          onClick={togglePanelsSwapped}
+        >
+          <ArrowLeftRight size={16} />
+        </button>
+
         {/* ------------------------------------------------- 右：课程草稿 */}
-        <aside className={`studio__draft ${mobileTab !== "draft" ? "mobile-hidden" : ""}`}>
+        <aside
+          className={`studio__draft ${mobileTab !== "draft" ? "mobile-hidden" : ""} ${
+            panelsSwapped ? "is-swapped" : ""
+          }`}
+        >
           <header className="studio__draft-header">
             {showGeneratedPages && plan ? (
               <nav className="studio__part-tabs" aria-label="页面制作">
@@ -688,8 +891,8 @@ export function CoursewareStudio({
                       <Presentation size={15} />
                       PPT {part.partIndex}
                       {item ? (
-                        <span className={`is-${item.status.toLowerCase()}`}>
-                          {CW_PART_STATES[item.status]}
+                        <span className={`is-${resolvePartState(item).state.toLowerCase()}`}>
+                          {resolvePartState(item).label}
                         </span>
                       ) : null}
                     </button>
@@ -1071,6 +1274,26 @@ export function CoursewareStudio({
                     }
                   />
                 </label>
+                <label className="studio__input-label">
+                  <span>核心内容（每行一条）</span>
+                  <textarea
+                    rows={4}
+                    value={draft.mustInclude}
+                    onChange={(event) =>
+                      setDraft((previous) => ({ ...previous, mustInclude: event.target.value }))
+                    }
+                  />
+                </label>
+                {summary?.assumptions?.length ? (
+                  <div className="studio__assumptions">
+                    <h4>
+                      <HelpCircle size={13} /> 尚待确认的假设
+                    </h4>
+                    {summary.assumptions.map((item) => (
+                      <p key={item}>{item}</p>
+                    ))}
+                  </div>
+                ) : null}
               </>
             ) : (
               <>

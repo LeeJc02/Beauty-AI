@@ -50,15 +50,20 @@ function useCoursewareSimulator() {
   }, [frameIndex, awaiting, task]);
 
   const start = useCallback(() => {
+    if (form.files.some((file) => file.status === "uploading")) {
+      setError("文件上传未完成，请稍后再开始生成");
+      return false;
+    }
     if (!form.prompt.trim() && !form.files.length) {
       setError("请上传 PDF、Word、PPT 资料，或填写生成提示词");
-      return;
+      return false;
     }
     setError("");
     setTask(createTask(form));
     setFrameIndex(0);
     setAwaiting(false);
     setBusy(false);
+    return true;
   }, [form]);
 
   const reset = useCallback(() => {
@@ -76,6 +81,35 @@ function useCoursewareSimulator() {
       setAwaiting(false);
     }, delay);
   }, []);
+
+  /**
+   * 重试附加题（对齐 vue 的 handleRetryHomework）：课件本体不动，
+   * 只把课后题重新排一遍，完成后继续走后面的帧（直接进结果页）。
+   */
+  const retryHomework = useCallback(() => {
+    setTask((previous) =>
+      previous
+        ? {
+            ...previous,
+            status: 20,
+            errorMessage: undefined,
+            homeworkGenerationStatus: "running",
+            homeworkGenerationMessage: "正在重新生成 10 道课后题",
+            series: previous.series
+              ? {
+                  ...previous.series,
+                  items: previous.series.items.map((item) =>
+                    item.status === "SUCCEEDED"
+                      ? { ...item, homeworkGenerationStatus: "running" }
+                      : item,
+                  ),
+                }
+              : previous.series,
+          }
+        : previous,
+    );
+    release(1600);
+  }, [release]);
 
   const answer = useCallback(
     (questions: CwQuestion[], answers: Record<string, string>, notes: Record<string, string>) => {
@@ -151,11 +185,11 @@ function useCoursewareSimulator() {
     [release],
   );
 
-  return { form, setForm, task, busy, error, setError, start, reset, answer, confirm };
+  return { form, setForm, task, busy, error, setError, start, reset, answer, confirm, retryHomework };
 }
 
 export function CoursewareCreateFlow() {
-  const { form, setForm, task, busy, error, start, reset, answer, confirm } =
+  const { form, setForm, task, busy, error, start, reset, answer, confirm, retryHomework } =
     useCoursewareSimulator();
   const [view, setView] = useState<View>("entry");
   const [leaving, setLeaving] = useState(false);
@@ -179,7 +213,8 @@ export function CoursewareCreateFlow() {
   }, [task?.status, task?.done, task?.homeworkGenerationStatus]);
 
   const handleStart = () => {
-    start();
+    // 校验不通过就留在入口卡（否则会进到工作台一直显示「正在建立课程…」）
+    if (!start()) return;
     swapTo("studio");
   };
 
@@ -210,9 +245,11 @@ export function CoursewareCreateFlow() {
             task={task}
             sourcePrompt={form.prompt}
             busy={busy}
+            autoConfirm={form.autoConfirm}
             onAnswer={answer}
             onConfirm={confirm}
             onCancel={handleRestart}
+            onRetryHomework={retryHomework}
             onPreviewPage={(pageId, title) => {
               const page = task.generation?.pages.find((item) => item.id === pageId);
               setPreview({

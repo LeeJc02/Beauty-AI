@@ -1,32 +1,40 @@
-# 生成课件复刻 + 数据审计改版 · v0.5.0（2026-09-16）
+# 数据审计 AI 员工 + 课件增量对齐 · v0.6.0（2026-09-16）
 
-**Scope**: `src/pages/courseware/`（新增：入口卡 / 课程共创工作台 / 结果页 / courseware.css）、`src/lib/coursewareStudio.ts`（VO + 演示帧）、`src/pages/CourseCreation.tsx`（改为委派）、`src/pages/training-inspection/AuditConsole.tsx` 与 `audit-console.css`（改成同款卡片式交互）。
+**Scope**：`src/pages/training-inspection/AuditConsole.tsx`（重写）、`src/pages/training-inspection/audit-console.css`、`src/pages/TrainingInspection.tsx`（视图拆分）、`src/pages/training-inspection/OverviewTab.tsx`、`src/lib/auditTools.ts`（汇报文案 / 图表数据 / 阶段旁白）、`src/lib/coursewareUpload.ts`（新增）、`src/pages/courseware/CoursewareEntry.tsx`、`CoursewareStudio.tsx`、`CoursewareResult.tsx`、`CoursewareCreateFlow.tsx`、`courseware.css`、`src/lib/coursewareStudio.ts`。
 
-**来源**：`SalesBoost-vue@test` 的 `src/views/courseware/create/`（index.vue 3804 行 + CoursewareStudio.vue 1500 行 + coursewareStudio.scss 2048 行 + generationTask/studioDraft）、`src/locales/modules/coursewareStudio.ts`、`SalesBoost-adm@test` 的 generation-task 契约。
+**来源**：`SalesBoost-vue@test` 的 `src/views/courseware/create/`（截至 `5e1024310`）；数据审计侧来自 `Supervisor/` 两份设计文档。
 
 **Checks**
 
-- 入口卡：徽章「AI 课程共创工作区」+ 「把你的经验，变成一堂好课」+ 三步路线图 + 提示词（0/12000 计数）+ 3 个灵感示例 + 课程类型四选一 + 参考资料上传（点击即演示上传到 100%）+ 课程设置折叠 + 自动完成开关 + 课件语言 + 「开始共创课程」。截图 `qa/courseware-entry.png`。
-- 卡片切换：入口卡只淡出（0.7s 不位移），工作台淡入并上浮 8px（0.9s），左右面板再错峰 140ms —— 对齐 `cw-swap` + `studio-expand-left`；`prefers-reduced-motion` 下动效归零。
-- 课程共创工作台：顶部四段轨道（梳理目标 / 课程规划 / 确认大纲 / 生成课件）+ 课题胶囊 + 「进度已保存」+ 阶段标签；左栏教练条（结束本次制作 / 课程共创助手 / 第 1 轮）+ 用户气泡 + 反问卡（「为什么问」+ 选项 + 推荐「建议」徽章 + None·我自己填写 + 补充细节）；右栏空态三张蓝图卡。截图 `qa/courseware-interview.png`。
-- 两轮反问 → 课程规划（8 章节，摘要可编辑，含尚待确认的假设）→ 大纲勾选（3 个子课件 6/8/5 页，勾选框 + 编号 + 类型徽章 + 描述片段 + 编辑）。截图 `qa/courseware-outline.png`。
-- 逐页制作：状态卡「正在逐页制作 · 子课件 1/3 生成中」+ 呼吸 orb + 课件制作进度 14% + 离开提示 + 三个子课件进度（22% 制作中 / 0% 等待制作）；右栏页面制作列表按 PPT 分页签切换，含自动重试与媒体待处理提示、课后练习卡。截图 `qa/courseware-generating.png`。
-- 完成：系列课件列表（3 张卡，三套封面色 + 第 N/3 部分 + 已完成 + 预计时长 + 下载/预览）→ 单课件只读预览（iframe 现场生成的讲解页 HTML，工具栏含返回列表 / 返回创建 / 下载课件 / 发布课件）。截图 `qa/courseware-preview.png`。
-- 数据审计：初始简卡（“想让 Agent 查什么？”+ 示例 chip + 开始审计）→ 淡出后浮现审计工作台；顶部四段轨道「补齐条件 / 工具取数 / 规则审计 / 报告」走到第 4 段，左栏工具调用卡（ADM 徽章、`tool_call_completed`、traceId、权限码、实参、结论、指标、可展开明细表 / 口径 / 数据来源），右栏审计口径与工具白名单（调用次数 ×1 + 最近结论，可单独调用）。截图 `qa/audit-entry-card.png`、`qa/audit-tool-trajectory.png`、`qa/audit-report.png`。
-- 移动端 390×844：两个页面 `document.documentElement.scrollWidth === innerWidth === 390`，无横向溢出；工作台切到「与 AI 共创 / 课程草稿」双 tab，审计页双栏纵向堆叠，教练条不换行。截图 `qa/courseware-mobile-390.png`、`qa/audit-mobile-390.png`。
-- `npm run lint` 0 错误、`npm run test:inspection` 57/57、`npx vite build` 通过；控制台只有 favicon 404。
+数据审计（AI 员工）
+- 首屏只剩：徽章 + 「想问什么，直接说。」+ 输入框 + 5 个示例 chip + 三步路线 + 范围 / 周期 / 工具数 chip + 开始审计（无页面标题栏、无工具条、无平级 tab）。截图 `qa/audit-agent-entry.png`。
+- 澄清：一张卡里按顺序问（时间 / 地区 / 关注方面），答完一条展开下一条并收成「✓ 本周」，可点选项、可直接打字、可「先跳过」用默认值，计数「需要你确认 · 1/3」。截图 `qa/audit-agent-clarify.png`、`audit-agent-clarify-3.png`。
+- 过程：轨迹里每步是一句人话旁白 + 工具名 + 一行结果，可展开看结论 / 指标 / 明细表 / 口径 / 数据来源 / 权限码 / traceId / 耗时；右栏「已经拿到的数据」随执行追加关键数字。截图 `qa/audit-agent-running.png`。
+- 汇报：一段话结论（26 项任务 / 覆盖 36 名 BA / 人均 221 分钟 / 南区最重 264 分钟 / 44 条结论里高风险 12 条 / 28 人超容量 / 7 项重复布置 / 09-20 单人 181 分钟超过 60 分钟承受线 / 建议先做哪一步）+ 6 个数字 + 各区域人均排期图 + 每天最忙图 + 需要你知道的 5 件事 + 建议 + 两处折叠（汇报背后的数据 / 这次怎么查的）+ 四个动作。截图 `qa/audit-agent-report-top.png`、`audit-agent-charts.png`、`audit-agent-report.png`。
+- 双栏可交换（顺序记忆），窄屏自动隐藏；审计档案视图可回退到对话且不丢上下文。截图 `qa/audit-agent-swapped.png`、`qa/audit-archive.png`。
+- 权限越界仍走「权限被拒绝」轨迹（`PERMISSION_DENIED`），不绕过 ADM 校验。
+
+生成课件（与 vue 增量对齐）
+- 上传框保留原样，文件状态在框内切换：进度条 + 暂停 / 继续 / 重试 / 移除；断点续传横幅（已上传 34% · 更新于 09/16 14:47 + 继续上传 / 丢弃）；187MB 文件在 80% 失败并给出「网络中断…」文案与重试；ZIP 走校验失败提示。截图 `qa/courseware-entry-upload.png`、`courseware-upload-progress.png`、`courseware-upload-resume.png`、`courseware-upload-failed.png`。
+- 双栏中间交换按钮；⌘/Ctrl+Enter；开启「直接完成」后两轮反问与两次确认自动推进。
+- 生成阶段按 generating_children → media → tts → persisting 递进；课后题失败卡给出「重试附加题」并只重跑附加题，随后进入结果页。
+- 结果页：卡片可键盘触发、不可用卡降级、发布带「发布中」、预览 iframe 有加载遮罩；修掉 iframe 高度塌成 150px 的问题。截图 `qa/courseware-homework-failed.png`、`courseware-series.png`、`courseware-preview-page.png`。
+
+通用
+- `npm run lint` 0 错误、`npm run test:inspection` 57/57、`npx vite build` 通过。
+- 390×844：`document.documentElement.scrollWidth === innerWidth === 390`，无横向溢出。截图 `qa/audit-agent-mobile-390.png`。
 
 **Patches Made**
 
-- 确认大纲后按钮会跳回上一步：`confirm()` 不再把 `partSelection.required` 置 false，交给生成阶段自己收掉。
-- 预览页在小视口下溢出：`slidePreviewHtml()` 的幻灯片宽度改为 `min(1120px, 92vw, (100vh - 64px) * 16 / 9)`。
-- 窄屏教练条换行：≤768px 时保持单行并收紧内边距。
+- 审计工作台的新内容不再依赖容器内滚动：改滚底部哨兵，页面滚动容器在 `main` 上也能自动跟随。
+- 汇报段落里的数字与卡片统一口径（覆盖人数 vs 可计工时人数分开说），避免「28 人 / 36 人」打架。
+- 日曲线标签从「17」改成「周三 17」，区域 0 任务改成「本期无任务」。
+- 轨迹行排版：旁白一行、工具名与结果一行，窄屏把结果放到第二行占满宽度（原来被挤到十几个像素）。
+- 结果页预览 iframe 高度塌陷（`height:100%` 在 flex 子项里不生效）改为 `position:absolute; inset:0`。
 
 **Follow-up Polish**
 
-- 演示数据不连后端；真实接入时把 `buildFrames()` 换回 `generation-task` 轮询 + SSE 即可，组件层不用改。
+- vue 侧仍在迭代（`5e1024310` 之后可能还有新的上传 / 大纲交互），再同步时优先看 `CoursewareStudio.vue` 与 `index.vue` 的上传区和面板区。
+- 课程设置的分类级联、真实音色列表、真实封面 / 下载 / 发布仍是原型取舍，见 `COURSEWARE_STUDIO.md`「仍未对齐的地方」。
 
 final result: passed
-
----
-

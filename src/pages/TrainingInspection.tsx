@@ -62,6 +62,7 @@ import {
   useRequirements,
 } from "../lib/requirementStore";
 import { DispositionDialog } from "./training-inspection/DispositionDialog";
+import { AuditConsole } from "./training-inspection/AuditConsole";
 import { OverviewTab } from "./training-inspection/OverviewTab";
 import { SimulationDialog } from "./training-inspection/SimulatePanel";
 import { Chip, actorForRole, scopeRisk } from "./training-inspection/shared";
@@ -92,6 +93,13 @@ export function TrainingInspection({
   const currentWeek = weekStart(today);
   /** 固定两个 tab，加上用户自己创建的自定义审计 tab（id 就是需求 id）。 */
   const [tab, setTab] = useState<string>("overview");
+  /**
+   * 页面有两个视图：
+   * - agent：默认。Codex 式的 AI 员工入口，整屏留给对话与汇报。
+   * - archive：审计档案。指标、最近审计、审计记录、区域工时与自定义审计留档。
+   * 两个视图都保持挂载（用 hidden 切换），这样来回切换时对话不会丢。
+   */
+  const [view, setView] = useState<"agent" | "archive">("agent");
   const requirements = useRequirements();
   const [removeRequirement, setRemoveRequirement] =
     useState<InspectionRequirement | null>(null);
@@ -241,10 +249,11 @@ export function TrainingInspection({
     }
   };
 
-  /** 打开「区域负担」里对应的任务：切到该页并自动定位、高亮。 */
+  /** 打开「区域工时审计」里对应的任务：切到档案视图并自动定位、高亮。 */
   const focusTask = (taskId: string) => {
     setSelectedTaskId(taskId);
     setTab("checkup");
+    setView("archive");
   };
 
   const exportBrief = () => {
@@ -339,6 +348,24 @@ export function TrainingInspection({
 
   return (
     <div className="inspection-workspace" data-i18n-skip="true">
+      {/* 本地存档异常等提示在两个视图里都要看得到 */}
+      {message ? <div className="inspection-toast">{message}</div> : null}
+
+      {/* 默认视图：AI 员工入口（Codex 式整屏对话）。保持挂载，切档不丢对话 */}
+      <div className={view === "agent" ? "" : "hidden"}>
+        <AuditConsole
+          state={state}
+          actor={actor}
+          week={week}
+          today={today}
+          onFocusTask={focusTask}
+          onToast={setMessage}
+          onOpenArchive={() => setView("archive")}
+        />
+      </div>
+
+      {/* 次级视图：审计档案（指标、审计记录、区域工时、自定义审计） */}
+      <div className={view === "archive" ? "" : "hidden"}>
       <div className="inspection-heading">
         <div>
           <div className="inspection-eyebrow">
@@ -346,10 +373,18 @@ export function TrainingInspection({
           </div>
           <h1>数据审计</h1>
           <p>
-            Agent 用工具核对任务、人群、工时与规则口径，每条结论都带数据出处；有疑问直接在下面问它。
+            Agent 用工具核对任务、人群、工时与规则口径，每条结论都带数据出处；想问什么回「Agent 对话」里直接说。
           </p>
         </div>
         <div className="inspection-actions wrap">
+          <button
+            type="button"
+            className="inspection-button"
+            onClick={() => setView("agent")}
+            title="回到与 Agent 对话的入口；这里的指标与记录会保留"
+          >
+            <Sparkles size={14} /> 回到 Agent 对话
+          </button>
           <div className="inspection-actions">
             <span className="inspection-actions-label" title="总览与区域负担的数字都按这一周统计">
               统计周期
@@ -477,8 +512,6 @@ export function TrainingInspection({
         })}
       </div>
 
-      {message ? <div className="inspection-toast">{message}</div> : null}
-
       <div className="inspection-body">
         {tab === "overview" ? (
           <OverviewTab
@@ -487,6 +520,7 @@ export function TrainingInspection({
             week={week}
             today={today}
             risks={risks}
+            showConsole={false}
             onOpenTask={openSourceTask}
             onFocusTask={focusTask}
             onCreatedRequirement={(id) => setTab(id)}
@@ -522,6 +556,7 @@ export function TrainingInspection({
             onOpenTask={openSourceTask}
           />
         ) : null}
+      </div>
       </div>
 
       {simulateTask ? (

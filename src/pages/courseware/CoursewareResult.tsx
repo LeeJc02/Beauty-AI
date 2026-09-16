@@ -6,11 +6,12 @@ import {
   Clock3,
   Download,
   Layers3,
+  LoaderCircle,
   Presentation,
   Send,
 } from "lucide-react";
 import {
-  CW_PART_STATES,
+  resolvePartState,
   resolveResultState,
   slidePreviewHtml,
   type CwTask,
@@ -26,6 +27,18 @@ export function CoursewareResult({
   const state = resolveResultState(task);
   const [current, setCurrent] = useState<number | null>(null);
   const [published, setPublished] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const [iframeLoading, setIframeLoading] = useState(true);
+
+  /** 演示发布：转一下再置为已发布（真实链路是调发布接口）。 */
+  const publish = () => {
+    if (publishing || published) return;
+    setPublishing(true);
+    window.setTimeout(() => {
+      setPublishing(false);
+      setPublished(true);
+    }, 900);
+  };
 
   if (state.mode === "none") return null;
 
@@ -40,7 +53,14 @@ export function CoursewareResult({
       <div className="cw-series" style={{ background: "#f8f5f3" }}>
         <div className="cw-preview-bar">
           {items.length > 1 ? (
-            <button type="button" className="cw-ghost" onClick={() => setCurrent(null)}>
+            <button
+              type="button"
+              className="cw-ghost"
+              onClick={() => {
+                setCurrent(null);
+                setIframeLoading(true);
+              }}
+            >
               <ArrowLeft size={14} /> 返回列表
             </button>
           ) : null}
@@ -50,6 +70,7 @@ export function CoursewareResult({
           <button
             type="button"
             className="cw-ghost"
+            title="演示环境：下载会拉取课件的 pptx 导出包"
             onClick={() => window.alert("演示环境：下载会拉取课件的 pptx 导出包。")}
           >
             <Download size={14} /> 下载课件
@@ -57,12 +78,16 @@ export function CoursewareResult({
           <button
             type="button"
             className="cw-primary"
-            disabled={published}
-            onClick={() => setPublished(true)}
+            disabled={published || publishing || iframeLoading}
+            onClick={publish}
           >
             {published ? (
               <>
                 <Check size={15} /> 已发布
+              </>
+            ) : publishing ? (
+              <>
+                <LoaderCircle size={15} className="cw-spin" /> 发布中
               </>
             ) : (
               <>
@@ -76,7 +101,14 @@ export function CoursewareResult({
             title={title}
             srcDoc={slidePreviewHtml(title, index, 1)}
             sandbox="allow-scripts"
+            onLoad={() => setIframeLoading(false)}
           />
+          {iframeLoading ? (
+            <div className="cw-preview-loading" role="status">
+              <LoaderCircle size={20} className="cw-spin" />
+              <span>正在加载课件…</span>
+            </div>
+          ) : null}
         </div>
       </div>
     );
@@ -108,9 +140,29 @@ export function CoursewareResult({
 
         <div className="cw-series__grid">
           {items.map((item) => {
-            const available = item.status === "SUCCEEDED";
+            const part = resolvePartState(item);
+            const available = part.state === "SUCCEEDED";
+            const openPreview = () => {
+              if (!available) return;
+              setIframeLoading(true);
+              setCurrent(item.partIndex);
+            };
             return (
-              <article key={item.childJobId} className="cw-series-card">
+              <article
+                key={item.childJobId}
+                className={`cw-series-card ${available ? "" : "is-unavailable"}`}
+                role={available ? "button" : undefined}
+                tabIndex={available ? 0 : -1}
+                aria-disabled={available ? undefined : true}
+                title={available ? "打开只读预览" : part.note ?? part.label}
+                onClick={openPreview}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    openPreview();
+                  }
+                }}
+              >
                 <div className="cw-series-card__cover">
                   <div className="cw-series-card__fallback">
                     <span>{String(item.partIndex).padStart(2, "0")}</span>
@@ -121,15 +173,9 @@ export function CoursewareResult({
                       第 {item.partIndex}/{item.partCount} 部分
                     </span>
                     <span
-                      className={`cw-series-card__status ${
-                        item.status === "SUCCEEDED"
-                          ? "is-succeeded"
-                          : item.status === "FAILED"
-                            ? "is-failed"
-                            : "is-pending"
-                      }`}
+                      className={`cw-series-card__status is-${part.state.toLowerCase()}`}
                     >
-                      {CW_PART_STATES[item.status]}
+                      {part.label}
                     </span>
                   </div>
                 </div>
@@ -141,6 +187,7 @@ export function CoursewareResult({
                       预计 {Math.max(1, Math.round(item.estimatedDurationSeconds / 60))} 分钟
                     </div>
                   ) : null}
+                  {part.note ? <p className="cw-series-card__note">{part.note}</p> : null}
                   {item.error ? <p className="cw-series-card__error">{item.error}</p> : null}
                 </div>
                 <div className="cw-series-card__actions">
@@ -148,7 +195,11 @@ export function CoursewareResult({
                     type="button"
                     className="cw-ghost"
                     disabled={!available}
-                    onClick={() => window.alert("演示环境：下载该子课件的 pptx 导出包。")}
+                    title="演示环境：下载该子课件的 pptx 导出包"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      window.alert("演示环境：下载该子课件的 pptx 导出包。");
+                    }}
                   >
                     <Download size={14} /> 下载
                   </button>
@@ -156,7 +207,10 @@ export function CoursewareResult({
                     type="button"
                     className="cw-primary"
                     disabled={!available}
-                    onClick={() => setCurrent(item.partIndex)}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      openPreview();
+                    }}
                   >
                     预览 <ArrowRight size={15} />
                   </button>

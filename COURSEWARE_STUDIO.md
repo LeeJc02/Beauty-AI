@@ -59,6 +59,35 @@
 - 预览用现场生成的单页 HTML，不渲染真正的 classroom 播放器。
 - 导出、发布、下载都是提示语（`window.alert`），不产生真实文件。
 
+## 第二轮：与 vue 增量对齐（2026-09-16 15:37 的 `5e1024310`）
+
+复刻第一稿基于 vue@test `7b1777da7`；之后 vue 又落了 `5e1024310`
+（"优化课件工作台上传与大纲交互"），本仓库已把其中有界面影响的部分搬过来：
+
+| vue 的改动 | Beauty-AI 对应 |
+| --- | --- |
+| 上传框始终保留，文件状态在框内切换（`courseware-upload-area--stable` + `courseware-upload-status`） | `CoursewareEntry.tsx` 上传区重写：框内状态列表（文件名 / 扩展名 / 进度条 / 暂停 / 继续 / 重试 / 移除） |
+| 上传状态机 `ready → uploading → (paused \| failed) → success` | `src/lib/coursewareUpload.ts`：`validateUploadFile()`（仅 PDF/Word/PPT、单文件 ≤ 500MB）、`progressStep()`；≥100MB 的文件第一次在 80% 处模拟一次网络中断，用来演示失败重试 |
+| 断点续传（`recoverableUploadTasks` + 重选原文件） | 移除未完成的上传会写一条 localStorage 记录 → 页面出现「可恢复的上传」卡片（文件名 / 大小 / 已上传 X% / 更新时间 / 继续上传 / 丢弃）；继续上传要重选原文件，文件名与大小不匹配就提示 |
+| 双栏中间的交换面板按钮（`studio__swap-panels` + `is-swapped` + localStorage） | `CoursewareStudio.tsx` 与审计工作台都加了同一个按钮，顺序分别记在 `courseware-studio-panels-swapped` / `audit-console-panels-swapped`；窄屏双栏叠起来时隐藏 |
+| 失败态区分 failed / canceled + 「仅课后题失败可重试」 | `resolveGenerationStatus()` / `canRetryHomework()`；入口新增演示开关「课后题失败分支」，走到末尾会停在失败卡，可点「重试附加题」只重跑附加题 |
+| 更细的生成阶段 | `GenerationPhase` 补齐 `queued / generating_scenes / generating_media / generating_tts / persisting`，演示帧逐步经过这些阶段，标题按阶段与 step 切换 |
+| 子课件状态并入课后题语义 | `resolvePartState()`（课后题未同步完成就算「制作中 · 正在同步课后题」）与 `resolveSeriesProgress()`（课后题未导入不显示 100%，失败封顶 99%） |
+| 确认提交契约 | `confirm()` 按两种表单分别校验：大纲阶段校「标题 + 讲解安排 + 内容要点」并至少勾一个部品；摘要阶段校主题 / 目标学员 / 学习目标，并把逐页大纲当作 `planningOutline`；摘要卡片补齐「核心内容（每行一条）」与「尚待确认的假设」 |
+| 草稿持久化与轮次重置 | `sessionStorage['courseware-studio-draft:{taskId}']` 存 `{key, draft}`（只在等回答 / 待确认阶段写）；`clarificationRound` 变化时清空上一轮的答案与补充说明 |
+| `⌘/Ctrl + Enter` 提交；`autoConfirm` 自动推进 | `<section onKeyDown>` 复用 `submitAnswers()/confirm()`；入口的「直接完成（自动继续全流程）」现在真的会 1 秒后自动推进（同一屏只自动一次） |
+| 顶栏保存三态、已完成阶段打勾 | 「尚未保存 / 正在保存 / 进度已保存」三态；已走过的阶段序号换成对勾 |
+| 结果页可访问性与发布态 | 系列卡可键盘触发（`role=button` + Enter/Space）、不可用卡降级为 `is-unavailable`、发布按钮带「发布中」态、预览 iframe 未就绪时有遮罩（并修了 iframe 高度塌成 150px 的老问题） |
+
+### 仍未对齐的地方（原型取舍）
+
+- 上传没有真实分片、断点续传不真的续传（写的是本地记录），进度由定时器推进；
+- 生成阶段是帧推进，不是 `generation-task` 轮询，也没有 `snapshotVersion` 之类的对账字段；
+- 课程设置的「产品分类」还是写死的文本（vue 是级联选择器），讲解角色是固定三条，没有请求真实音色列表；
+- 结果页封面用色块 + 编号占位（vue 会拉 `coverUrl` 并在失败时回退），预览是现场生成的单页 HTML，不是真实 classroom 播放器；
+- 下载 / 导出 / 发布都是前端提示语，不产生真实文件；
+- 「连接中断」提示条（`studio__connection-notice`）在原型里无从触发，暂未接入。
+
 ## 验证
 
 ```sh
@@ -67,5 +96,5 @@ npm run test:inspection # 57 项
 npx vite build
 ```
 
-浏览器动线（截图见 `qa/courseware-*.png`）：入口卡 → 开始共创 → 两轮反问 → 课程规划确认 → 大纲勾选确认 →
-逐页制作（进度 14% / 22% 子课件）→ 系列课件列表 → 只读预览；390×844 无横向溢出。
+浏览器动线（截图见 `qa/courseware-*.png`）：入口卡 → 上传（含暂停 / 失败重试 / 可恢复横幅 / 校验失败）→ 开始共创 → 两轮反问 → 课程规划确认 → 大纲勾选可编辑确认 →
+逐页制作（生成页面 / 媒体 / 语音 / 保存课件四个阶段）→ 课后题失败卡 → 重试附加题 → 系列课件列表 → 只读预览；390×844 无横向溢出。

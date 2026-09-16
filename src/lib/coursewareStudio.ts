@@ -22,6 +22,11 @@ export type GenerationPhase =
   | "plan"
   | "outline"
   | "pages"
+  | "queued"
+  | "generating_scenes"
+  | "generating_media"
+  | "generating_tts"
+  | "persisting"
   | "finalizing"
   | "completed"
   | "failed"
@@ -174,6 +179,10 @@ export interface CwUploadItem {
   size: number;
   progress: number;
   status: "ready" | "uploading" | "paused" | "failed" | "success";
+  /** 失败原因（校验失败 / 网络中断），展示在文件名下面。 */
+  error?: string;
+  /** 已尝试次数：第一次失败后重试不再模拟中断。 */
+  attempts?: number;
 }
 
 export interface CwForm {
@@ -181,6 +190,8 @@ export interface CwForm {
   kind: CourseKind;
   files: CwUploadItem[];
   autoConfirm: boolean;
+  /** 演示开关：走到「课件已完成、课后题失败」时停下，用于演示重试附加题。 */
+  demoHomeworkFailure: boolean;
   language: GenerationLanguage;
   outlineEnhancement: boolean;
   generateHomeworkSync: boolean;
@@ -200,6 +211,11 @@ export const CW_PHASES: Record<GenerationPhase, string> = {
   plan: "正在整理课程大纲",
   outline: "正在细化页面结构",
   pages: "正在逐页制作",
+  queued: "等待开始",
+  generating_scenes: "正在生成页面",
+  generating_media: "正在生成媒体",
+  generating_tts: "正在生成语音",
+  persisting: "正在保存课件",
   finalizing: "正在整合课件",
   completed: "课件已完成",
   failed: "制作失败",
@@ -212,6 +228,11 @@ export const CW_PHASE_HINTS: Record<GenerationPhase, string> = {
   plan: "整理课程结构、章节目标和内容要点，完成后可直接修改并确认。",
   outline: "正在根据课程规划生成逐页大纲，完成后请确认；确认前不会制作页面。",
   pages: "完成一页即可预览；列表按已确认的大纲排序。",
+  queued: "任务已排队，马上开始。",
+  generating_scenes: "正在逐页生成内容，已完成的页面会保留在右侧。",
+  generating_media: "页面已生成，正在处理图片和视频。",
+  generating_tts: "页面已生成，正在处理语音。",
+  persisting: "正在保存页面和课件数据。",
   finalizing: "页面内容已制作，正在整合媒体、保存课件和同步练习。",
   completed: "全部制作已完成。",
   failed: "本次制作未完成。",
@@ -272,7 +293,10 @@ export const createCoursewareForm = (): CwForm => ({
   prompt: "",
   kind: "auto",
   files: [],
+  /** 「直接完成」开关打开：不自动补任何东西，交给工作台自己 1 秒后推进。 */
   autoConfirm: false,
+  /** 演示开关：走到「课件已完成、课后题失败」时停下，用于演示重试附加题。 */
+  demoHomeworkFailure: false,
   language: "id",
   outlineEnhancement: true,
   generateHomeworkSync: true,
@@ -481,6 +505,147 @@ export function coursewareFacts(task: CwTask) {
 
 /* ------------------------------------------------------ 状态与阶段解析 */
 
+/** vue 的 COURSEWARE_STAGE_ALIASES：把后端的 step 串归一成前端阶段。 */
+const CW_STAGE_ALIASES: Record<string, GenerationPhase> = {
+  queued: "queued",
+  reviewing_outline: "outline",
+  splitting_outline: "outline",
+  generating_children: "generating_scenes",
+  generating_scenes: "generating_scenes",
+  generating_media: "generating_media",
+  generating_tts: "generating_tts",
+  persisting: "persisting",
+  finalizing: "finalizing",
+  completed: "completed",
+  succeeded: "completed",
+  failed: "failed",
+};
+
+/**
+ * vue 的 resolveCoursewareTaskStage()：保留后端 step 的细粒度，
+ * 避免把后半程全部显示成「生成中」；课后题还在跑时归到 finalizing。
+ */
+export function resolveGenerationStage(task: CwTask | null): GenerationPhase {
+  if (!task) return "sources";
+  const status = resolveCoursewareTaskStatus(task.status);
+  if (status === 50) return "canceled";
+  if (status === 40) return "failed";
+  const step = String(task.step ?? "").trim().toLowerCase();
+  const homeworkStatus = String(task.homeworkGenerationStatus ?? "").trim().toLowerCase();
+  const homeworkPending =
+    task.generateHomeworkSync === true &&
+    task.done !== true &&
+    ["queued", "running", "succeeded"].includes(homeworkStatus);
+  if (homeworkPending && (step === "completed" || step === "finalizing" || !step))
+    return "finalizing";
+  if (CW_STAGE_ALIASES[step]) return CW_STAGE_ALIASES[step];
+  if (status === 10) return "queued";
+  if (status === 30) return "completed";
+  return task.generation?.phase ?? "generating_scenes";
+}
+
+/** 课后题是否还在生成（此时课件本体已完成）。 */
+export const isHomeworkGenerating = (task: CwTask | null) =>
+  !!task &&
+  task.generateHomeworkSync === true &&
+  task.done !== true &&
+  ["queued", "running"].includes(String(task.homeworkGenerationStatus ?? "").toLowerCase());
+
+/** 课件本体已成功但课后题失败：只能重试附加题，不重新生成课件。 */
+export const canRetryHomework = (task: CwTask | null) =>
+  !!task &&
+  resolveCoursewareTaskStatus(task.status) === 40 &&
+  !!task.result?.classroomId &&
+  task.homeworkGenerationStatus === "failed";
+
+/**
+ * 生成中卡片的标题与说明（对齐 vue 的 generationStatusTitle / generationStatusDescription）。
+ * 文案取自 coursewareCreate.studio.*。
+ */
+export function resolveGenerationStatus(task: CwTask | null): {
+  title: string;
+  description: string;
+} {
+  if (!task) return { title: CW_PHASES.sources, description: CW_PHASE_HINTS.sources };
+  const status = resolveCoursewareTaskStatus(task.status);
+  if (status === 50)
+    return {
+      title: "课件生成已取消",
+      description: "生成任务已取消，可返回创建页重新发起生成。",
+    };
+  if (status === 40)
+    return {
+      title: "课件生成失败",
+      description:
+        task.errorMessage || task.message || "生成任务未完成，请返回创建页检查资料后重新开始。",
+    };
+  if (status === 21)
+    return {
+      title: "等待补充生成要求",
+      description: task.sourcePreparation
+        ? "请完成所有必答项；材料解析完成后系统会继续生成。"
+        : "请补充必答信息，系统将在收到回答后继续生成。",
+    };
+  if (status === 22)
+    return {
+      title: "等待确认生成摘要",
+      description: "请确认系统整理后的要求摘要，确认后继续生成；拒绝后返回创建页修改原始要求。",
+    };
+  if (isHomeworkGenerating(task))
+    return {
+      title: "课后10道题生成中...",
+      description: "课件已完成，正在生成并回填10道课后题，完成后统一展示。",
+    };
+  if (status === 10) return { title: "课件排队生成中...", description: CW_PHASE_HINTS.queued };
+  const step = String(task.step ?? "").toLowerCase();
+  if (step === "reviewing_outline")
+    return {
+      title: "AI 正在审查完整大纲...",
+      description: "AI 正在梳理完整大纲并优化课程结构。",
+    };
+  if (step === "splitting_outline")
+    return {
+      title: "AI 正在拆分大纲...",
+      description: "AI 正在根据资料与需求判断是否需要拆分课件。",
+    };
+  if (step === "generating_children")
+    return {
+      title: "AI 正在生成子课件...",
+      description: "AI 正在依次生成各个子课件。",
+    };
+  const stage = resolveGenerationStage(task);
+  return {
+    title: CW_PHASES[stage] ?? "AI 正在深度解析文档...",
+    description: CW_PHASE_HINTS[stage] ?? CW_PHASE_HINTS.pages,
+  };
+}
+
+/**
+ * 子课件状态：课件本体已完成、课后题还没同步时仍算「制作中」，
+ * 小字提示在同步课后题（对齐 vue 的 seriesItemStatus / partState）。
+ */
+export function resolvePartState(item: CwSeriesItem): {
+  state: PartState;
+  label: string;
+  note?: string;
+} {
+  const homework = String(item.homeworkGenerationStatus ?? "").toLowerCase();
+  if (homework === "failed" || homework === "canceled")
+    return {
+      state: "FAILED",
+      label: CW_PART_STATES.FAILED,
+      note: homework === "failed" ? "课后题同步失败，可重试附加题" : undefined,
+    };
+  if (item.error || item.status === "FAILED")
+    return { state: "FAILED", label: CW_PART_STATES.FAILED, note: item.error ?? undefined };
+  if (item.status === "SUCCEEDED" && homework !== "imported")
+    return { state: "RUNNING", label: CW_PART_STATES.RUNNING, note: "正在同步课后题" };
+  if (item.status === "SUCCEEDED") return { state: "SUCCEEDED", label: CW_PART_STATES.SUCCEEDED };
+  if (item.status === "CANCELED") return { state: "CANCELED", label: CW_PART_STATES.CANCELED };
+  if (item.status === "QUEUED") return { state: "QUEUED", label: CW_PART_STATES.QUEUED };
+  return { state: "RUNNING", label: CW_PART_STATES.RUNNING };
+}
+
 export const resolveCoursewareTaskStatus = (raw: unknown): number => {
   if (typeof raw === "number") return raw;
   const text = String(raw ?? "").toLowerCase();
@@ -555,13 +720,15 @@ export function resolveProgress(task: CwTask | null) {
 }
 
 export const resolveSeriesProgress = (item: CwSeriesItem, withHomework: boolean) => {
-  if (item.progress !== undefined && item.progress !== null) {
-    const base = Math.min(100, Math.max(0, Math.round(item.progress)));
-    if (item.status === "SUCCEEDED" && withHomework && item.homeworkGenerationStatus !== "imported")
-      return 90;
-    return base;
-  }
-  return item.status === "SUCCEEDED" ? 100 : item.status === "RUNNING" ? 45 : 0;
+  const progress = Math.min(100, Math.max(0, Math.round(item.progress ?? 0)));
+  const homework = String(item.homeworkGenerationStatus ?? "").toLowerCase();
+  /* 对齐 vue 的 resolveCoursewareSeriesItemProgress：课后题未同步完不显示 100%。 */
+  if (homework === "failed" || homework === "canceled") return Math.min(progress, 99);
+  if (withHomework && homework !== "imported")
+    return item.status === "SUCCEEDED" ? (homework === "running" ? 95 : 90) : Math.min(90, progress);
+  if (item.status === "SUCCEEDED") return 100;
+  if (item.status === "FAILED") return Math.min(progress, 99);
+  return progress;
 };
 
 /** 结果状态：无 / 系列列表 / 单个预览。 */
@@ -842,11 +1009,18 @@ export function buildFrames(form: CwForm): CwFrame[] {
     }),
   });
 
-  const generationSteps: { id: string; progress: number; states: [PartState, number][]; delay: number; phase: GenerationPhase }[] = [
-    { id: "gen-1", progress: 14, states: [["RUNNING", 22], ["QUEUED", 0], ["QUEUED", 0]], delay: 2200, phase: "pages" },
-    { id: "gen-2", progress: 38, states: [["SUCCEEDED", 100], ["RUNNING", 46], ["QUEUED", 0]], delay: 2600, phase: "pages" },
-    { id: "gen-3", progress: 66, states: [["SUCCEEDED", 100], ["SUCCEEDED", 100], ["RUNNING", 58]], delay: 2600, phase: "pages" },
-    { id: "gen-4", progress: 88, states: [["SUCCEEDED", 100], ["SUCCEEDED", 100], ["SUCCEEDED", 100]], delay: 2400, phase: "finalizing" },
+  const generationSteps: {
+    id: string;
+    progress: number;
+    states: [PartState, number][];
+    delay: number;
+    phase: GenerationPhase;
+    step: string;
+  }[] = [
+    { id: "gen-1", progress: 14, states: [["RUNNING", 22], ["QUEUED", 0], ["QUEUED", 0]], delay: 2200, phase: "generating_scenes", step: "generating_children" },
+    { id: "gen-2", progress: 38, states: [["SUCCEEDED", 100], ["RUNNING", 46], ["QUEUED", 0]], delay: 2600, phase: "generating_media", step: "generating_media" },
+    { id: "gen-3", progress: 66, states: [["SUCCEEDED", 100], ["SUCCEEDED", 100], ["RUNNING", 58]], delay: 2600, phase: "generating_tts", step: "generating_tts" },
+    { id: "gen-4", progress: 88, states: [["SUCCEEDED", 100], ["SUCCEEDED", 100], ["SUCCEEDED", 100]], delay: 2400, phase: "finalizing", step: "persisting" },
   ];
 
   for (const step of generationSteps) {
@@ -870,7 +1044,7 @@ export function buildFrames(form: CwForm): CwFrame[] {
         return {
           ...task,
           status: 20,
-          step: step.phase === "finalizing" ? "persisting" : "generating_children",
+          step: step.step,
           progress: step.progress,
           message: running
             ? `子课件 ${running.partIndex}/${items.length} 生成中`
@@ -891,6 +1065,41 @@ export function buildFrames(form: CwForm): CwFrame[] {
           homeworkGenerationStatus: step.phase === "finalizing" ? "queued" : null,
           homeworkGenerationMessage:
             step.phase === "finalizing" ? "等待同步课后题" : `已完成 ${done} / ${items.length} 个子课件`,
+        };
+      },
+    });
+  }
+
+  /** 演示：课件本体已完成、只差课后题（用于演示「重试附加题」）。 */
+  if (form.demoHomeworkFailure) {
+    frames.push({
+      id: "homework-failed",
+      delayMs: 1600,
+      gate: true,
+      label: "课后题失败",
+      build: (task) => {
+        const items = (task.series?.items ?? []).map((item) =>
+          item.status === "CANCELED"
+            ? item
+            : { ...item, homeworkGenerationStatus: "failed" as const },
+        );
+        return {
+          ...task,
+          status: 40,
+          step: "finalizing",
+          progress: 99,
+          message: "课后题生成失败",
+          errorMessage: "课后题生成失败：题库服务超时，可只重试附加题，课件无需重新生成。",
+          homeworkGenerationStatus: "failed",
+          homeworkGenerationMessage: "10 道课后题生成失败",
+          series: task.series ? { ...task.series, items } : undefined,
+          result: {
+            classroomId: "cl-77120a",
+            url: "https://openmaic.demo/classroom/cl-77120a",
+            previewUrl: "https://openmaic.demo/classroom/cl-77120a",
+            downloadUrl: "https://openmaic.demo/api/classroom/cl-77120a/export/pptx",
+            scenesCount: 24,
+          },
         };
       },
     });

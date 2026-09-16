@@ -1,16 +1,17 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ArrowUpRight,
   BookOpen,
   ChevronRight,
+  FileClock,
   FileText,
   Languages,
   Lightbulb,
   ListChecks,
   MessageSquare,
+  RotateCcw,
   Sparkles,
   SlidersHorizontal,
-  Trash2,
   UploadCloud,
   Wand2,
   X,
@@ -23,6 +24,20 @@ import {
   type CwForm,
   type CwUploadItem,
 } from "../../lib/coursewareStudio";
+import {
+  DEMO_UPLOAD_FILES,
+  UPLOAD_ACCEPT,
+  UPLOAD_FLAKY_THRESHOLD_BYTES,
+  UPLOAD_MAX_SIZE_MB,
+  formatFileSize,
+  loadResumeTasks,
+  matchesResumeFile,
+  progressStep,
+  removeResumeTask,
+  upsertResumeTask,
+  validateUploadFile,
+  type CoursewareResumeTask,
+} from "../../lib/coursewareUpload";
 
 const KIND_ICONS: Record<string, React.ReactNode> = {
   sparkles: <Sparkles size={15} />,
@@ -39,6 +54,20 @@ const ROADMAP = [
 
 let fileSeed = 0;
 
+/** 断点续传记录里的时间显示：雅加达时区的「09/16 14:05」。 */
+function formatStamp(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleString("zh-CN", {
+    timeZone: "Asia/Jakarta",
+    hour12: false,
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 export function CoursewareEntry({
   form,
   setForm,
@@ -52,45 +81,180 @@ export function CoursewareEntry({
   submitting: boolean;
   error: string;
 }) {
-  /** 演示用的上传：点一下就往列表里放一个文件，并把进度推到 100%。 */
   const uploading = form.files.some((file) => file.status === "uploading");
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const resumeInputRef = useRef<HTMLInputElement | null>(null);
+  /** 校验 / 上传失败的提示，等价于 vue 里的 message.error。 */
+  const [notice, setNotice] = useState("");
+  const [dragging, setDragging] = useState(false);
+  const [resumeTasks, setResumeTasks] = useState<CoursewareResumeTask[]>([]);
+  const pendingResumeRef = useRef<CoursewareResumeTask | null>(null);
 
+  useEffect(() => {
+    setResumeTasks(loadResumeTasks());
+  }, []);
+
+  /**
+   * 上传进度推进（原型代替分片上传）：
+   * 大文件走得慢，≥100MB 的文件第一次会在 80% 处模拟一次网络中断，
+   * 这样「暂停 / 继续 / 失败 / 重试」四个分支都能在演示里走到。
+   */
   useEffect(() => {
     if (!uploading) return;
     const timer = window.setInterval(() => {
       setForm((previous) => ({
         ...previous,
-        files: previous.files.map((file) =>
-          file.status !== "uploading"
-            ? file
-            : file.progress >= 100
-              ? { ...file, progress: 100, status: "success" }
-              : { ...file, progress: Math.min(100, file.progress + 14) },
-        ),
+        files: previous.files.map((file) => {
+          if (file.status !== "uploading") return file;
+          const next = Math.min(100, file.progress + progressStep(file.size));
+          const flaky =
+            file.size >= UPLOAD_FLAKY_THRESHOLD_BYTES && (file.attempts ?? 1) <= 1;
+          if (flaky && next >= 80)
+            return {
+              ...file,
+              progress: 80,
+              status: "failed",
+              error: `网络中断，文件 ${file.name} 上传失败，请检查网络后重试`,
+            };
+          return next >= 100
+            ? { ...file, progress: 100, status: "success", error: undefined }
+            : { ...file, progress: next };
+        }),
       }));
-    }, 180);
+    }, 240);
     return () => window.clearInterval(timer);
   }, [uploading, setForm]);
 
-  const addMockFile = () => {
-    if (form.files.length) return;
+  /** 上传成功后清掉对应的断点续传记录。 */
+  const finishedSignature = form.files
+    .filter((file) => file.status === "success")
+    .map((file) => `${file.name}|${file.size}`)
+    .join(",");
+  useEffect(() => {
+    if (!finishedSignature) return;
+    const done = finishedSignature.split(",");
+    const current = loadResumeTasks();
+    const stale = current.filter((task) => done.includes(`${task.fileName}|${task.fileSize}`));
+    if (!stale.length) return;
+    for (const task of stale) removeResumeTask(task.id);
+    setResumeTasks(loadResumeTasks());
+  }, [finishedSignature]);
+
+  const patchFile = (uid: string, patch: Partial<CwUploadItem>) =>
+    setForm((previous) => ({
+      ...previous,
+      files: previous.files.map((file) =>
+        file.uid === uid ? { ...file, ...patch } : file,
+      ),
+    }));
+
+  /** 选文件 / 拖文件 / 点演示文件都走这里：先校验，再进上传队列。 */
+  const addFile = (name: string, size: number) => {
+    const checked = validateUploadFile(name, size);
+    if (!checked.ok) {
+      setNotice(checked.error ?? "文件校验失败");
+      return;
+    }
+    if (form.files.length) {
+      setNotice("参考资料仅支持一个文件，请先移除已上传的文件");
+      return;
+    }
+    setNotice("");
     fileSeed += 1;
     const file: CwUploadItem = {
       uid: `upload-${fileSeed}`,
-      name: "Y.O.U_BarrierShield_门店培训材料.pptx",
-      extension: "pptx",
-      size: 53.7 * 1024 * 1024,
-      progress: 6,
+      name,
+      extension: checked.extension,
+      size,
+      progress: 4,
       status: "uploading",
+      attempts: 1,
     };
     setForm((previous) => ({ ...previous, files: [file] }));
   };
 
-  const removeFile = (uid: string) =>
+  /** 继续上传：重选原文件，文件名与大小都对得上才从断点接着传。 */
+  const applyResume = (task: CoursewareResumeTask, name: string, size: number) => {
+    if (form.files.length) {
+      setNotice("参考资料仅支持一个文件，请先移除已上传的文件");
+      return;
+    }
+    if (!matchesResumeFile(task, name, size)) {
+      setNotice("请选择原始文件继续上传，文件名、大小或修改时间不匹配。");
+      return;
+    }
+    const checked = validateUploadFile(name, size);
+    if (!checked.ok) {
+      setNotice(checked.error ?? "文件校验失败");
+      return;
+    }
+    setNotice("");
+    fileSeed += 1;
+    const file: CwUploadItem = {
+      uid: `upload-${fileSeed}`,
+      name,
+      extension: checked.extension,
+      size,
+      progress: task.progress,
+      status: "uploading",
+      attempts: 2,
+    };
+    setForm((previous) => ({ ...previous, files: [file] }));
+    setResumeTasks(removeResumeTask(task.id));
+  };
+
+  const pickFiles = (files: FileList | null) => {
+    const file = files?.[0];
+    if (!file) return;
+    const pending = pendingResumeRef.current;
+    if (pending) {
+      pendingResumeRef.current = null;
+      applyResume(pending, file.name, file.size);
+      return;
+    }
+    addFile(file.name, file.size);
+  };
+
+  const chooseResumeFile = (task: CoursewareResumeTask) => {
+    pendingResumeRef.current = task;
+    if (resumeInputRef.current) {
+      resumeInputRef.current.value = "";
+      resumeInputRef.current.click();
+    }
+  };
+
+  const discardResume = (task: CoursewareResumeTask) => {
+    setResumeTasks(removeResumeTask(task.id));
+    setNotice(`已丢弃「${task.fileName}」的未完成上传。`);
+  };
+
+  const pauseFile = (file: CwUploadItem) => patchFile(file.uid, { status: "paused" });
+  const resumeFile = (file: CwUploadItem) => patchFile(file.uid, { status: "uploading" });
+  const retryFile = (file: CwUploadItem) =>
+    patchFile(file.uid, {
+      status: "uploading",
+      error: undefined,
+      attempts: (file.attempts ?? 1) + 1,
+    });
+
+  /** 移除未完成的上传时留一条恢复记录，回到页面就能看到「可恢复的上传」。 */
+  const removeFile = (file: CwUploadItem) => {
+    if (file.progress > 0 && file.progress < 100)
+      setResumeTasks(
+        upsertResumeTask({
+          id: file.uid,
+          fileName: file.name,
+          fileSize: file.size,
+          extension: file.extension,
+          progress: file.progress,
+          updatedAt: new Date().toISOString(),
+        }),
+      );
     setForm((previous) => ({
       ...previous,
-      files: previous.files.filter((file) => file.uid !== uid),
+      files: previous.files.filter((item) => item.uid !== file.uid),
     }));
+  };
 
   return (
     <div className="cw-entry-flow">
@@ -170,50 +334,215 @@ export function CoursewareEntry({
             </fieldset>
 
             <p className="cw-entry-file-label">添加参考资料（可选）</p>
-            {form.files.length ? (
-              <div style={{ display: "grid", gap: 8 }}>
-                {form.files.map((file) => (
-                  <div key={file.uid} className="cw-upload-item">
-                    <FileText size={16} color="#f97316" style={{ flex: "none" }} />
-                    <div style={{ minWidth: 0, flex: 1 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <span className="cw-upload-item__name">{file.name}</span>
-                        <span style={{ color: "#9a9396", fontSize: 11, textTransform: "uppercase" }}>
-                          {file.extension}
+            {/* 与 vue 一致：上传框始终保留，文件状态在框内切换 */}
+            <div
+              className={`cw-upload-area cw-upload-area--stable ${
+                dragging ? "is-dragging" : ""
+              }`}
+              onDragOver={(event) => {
+                event.preventDefault();
+                setDragging(true);
+              }}
+              onDragLeave={() => setDragging(false)}
+              onDrop={(event) => {
+                event.preventDefault();
+                setDragging(false);
+                pickFiles(event.dataTransfer.files);
+              }}
+            >
+              {form.files.length ? (
+                <div className="cw-upload-status">
+                  {form.files.map((file) => (
+                    <div key={file.uid} className="cw-upload-item">
+                      <FileText size={16} color="#f97316" style={{ flex: "none" }} />
+                      <div className="cw-upload-item__body">
+                        <div className="cw-upload-item__line">
+                          <span className="cw-upload-item__name">{file.name}</span>
+                          <span className="cw-upload-item__ext">{file.extension}</span>
+                        </div>
+                        {file.status !== "ready" ? (
+                          <div
+                            className={`cw-bar ${
+                              file.status === "failed"
+                                ? "is-failed"
+                                : file.status === "success"
+                                  ? "is-success"
+                                  : ""
+                            }`}
+                          >
+                            <span style={{ width: `${file.progress}%` }} />
+                          </div>
+                        ) : null}
+                        {file.status === "failed" && file.error ? (
+                          <small className="cw-upload-item__error">{file.error}</small>
+                        ) : null}
+                        {file.status === "paused" ? (
+                          <small className="cw-upload-item__meta">
+                            已暂停 · 已上传 {file.progress}%
+                          </small>
+                        ) : null}
+                        {file.status === "success" ? (
+                          <small className="cw-upload-item__ok">
+                            已上传完成，生成时会一并解析
+                          </small>
+                        ) : null}
+                      </div>
+                      {file.status === "uploading" ? (
+                        <button
+                          type="button"
+                          className="cw-upload-action"
+                          onClick={() => pauseFile(file)}
+                        >
+                          暂停
+                        </button>
+                      ) : null}
+                      {file.status === "paused" ? (
+                        <button
+                          type="button"
+                          className="cw-upload-action"
+                          onClick={() => resumeFile(file)}
+                        >
+                          继续
+                        </button>
+                      ) : null}
+                      {file.status === "failed" ? (
+                        <button
+                          type="button"
+                          className="cw-upload-action is-primary"
+                          onClick={() => retryFile(file)}
+                        >
+                          <RotateCcw size={13} /> 重试
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        className="cw-upload-action is-danger"
+                        aria-label="移除文件"
+                        title="移除（未完成的上传会写成可恢复记录）"
+                        onClick={() => removeFile(file)}
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="cw-upload-placeholder"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <span className="cw-upload-icon">
+                    <UploadCloud size={22} />
+                  </span>
+                  <span className="cw-upload-area__text">
+                    <strong>拖拽 PDF、Word 或 PPT 文件至此或点击上传</strong>
+                    <small>支持 PDF、Word、PPT，每个文件不超过 {UPLOAD_MAX_SIZE_MB}MB</small>
+                  </span>
+                </button>
+              )}
+            </div>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept={UPLOAD_ACCEPT}
+              style={{ display: "none" }}
+              onChange={(event) => {
+                pickFiles(event.target.files);
+                event.target.value = "";
+              }}
+            />
+            <input
+              ref={resumeInputRef}
+              type="file"
+              accept={UPLOAD_ACCEPT}
+              style={{ display: "none" }}
+              onChange={(event) => {
+                pickFiles(event.target.files);
+                event.target.value = "";
+              }}
+            />
+
+            {/* 演示辅助：点一下就走完整条上传链路，含一次失败重试与一次校验失败 */}
+            <div className="cw-upload-demo">
+              <span className="cw-upload-demo__label">演示：</span>
+              {DEMO_UPLOAD_FILES.map((demo) => (
+                <button
+                  key={demo.name}
+                  type="button"
+                  className="cw-upload-demo__chip"
+                  title={demo.hint}
+                  onClick={() => addFile(demo.name, demo.size)}
+                >
+                  {demo.name.split(".").pop()?.toUpperCase()} · {formatFileSize(demo.size)}
+                </button>
+              ))}
+              <label
+                className="cw-upload-demo__check"
+                title="走到生成末尾时停在「课件已完成、课后题失败」，用于演示重试附加题"
+              >
+                <input
+                  type="checkbox"
+                  checked={form.demoHomeworkFailure}
+                  onChange={(event) =>
+                    setForm((previous) => ({
+                      ...previous,
+                      demoHomeworkFailure: event.target.checked,
+                    }))
+                  }
+                />
+                课后题失败分支
+              </label>
+            </div>
+
+            {notice ? (
+              <p className="cw-upload-notice" role="alert">
+                {notice}
+              </p>
+            ) : null}
+
+            {!form.files.length && resumeTasks.length ? (
+              <div className="cw-resume">
+                <div className="cw-resume__head">
+                  <strong>可恢复的上传</strong>
+                  <span>选择原始本地文件后，可继续未完成的上传。</span>
+                </div>
+                {resumeTasks.map((task) => (
+                  <div key={task.id} className="cw-resume__item">
+                    <FileClock size={16} color="#d97706" style={{ flex: "none" }} />
+                    <div className="cw-upload-item__body">
+                      <div className="cw-upload-item__line">
+                        <span className="cw-upload-item__name">{task.fileName}</span>
+                        <span className="cw-upload-item__ext">
+                          {formatFileSize(task.fileSize)}
                         </span>
                       </div>
-                      {file.status !== "success" ? (
-                        <div className="cw-bar">
-                          <span style={{ width: `${file.progress}%` }} />
-                        </div>
-                      ) : (
-                        <small style={{ color: "#3b8f72", fontSize: 11 }}>
-                          已上传完成，生成时会一并解析
-                        </small>
-                      )}
+                      <small className="cw-upload-item__meta">
+                        已上传 {task.progress}% · 更新于 {formatStamp(task.updatedAt)}
+                      </small>
+                      <div className="cw-bar">
+                        <span style={{ width: `${task.progress}%` }} />
+                      </div>
                     </div>
                     <button
                       type="button"
-                      className="studio__text-button"
-                      onClick={() => removeFile(file.uid)}
-                      aria-label="移除文件"
+                      className="cw-upload-action is-primary"
+                      onClick={() => chooseResumeFile(task)}
                     >
-                      <X size={14} />
+                      继续上传
+                    </button>
+                    <button
+                      type="button"
+                      className="cw-upload-action is-danger"
+                      onClick={() => discardResume(task)}
+                    >
+                      丢弃
                     </button>
                   </div>
                 ))}
               </div>
-            ) : (
-              <button type="button" className="cw-upload-area" onClick={addMockFile}>
-                <span className="cw-upload-icon">
-                  <UploadCloud size={22} />
-                </span>
-                <span className="cw-upload-area__text">
-                  <strong>拖拽 PDF、Word 或 PPT 文件至此或点击上传</strong>
-                  <small>支持 PDF、Word、PPT，参考资料只保留一个文件</small>
-                </span>
-              </button>
-            )}
+            ) : null}
 
             <details className="cw-entry-settings">
               <summary>

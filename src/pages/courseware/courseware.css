@@ -444,6 +444,196 @@
   background: #fbf5f2;
 }
 
+/* 上传框始终保留：有文件时框内换成状态列表（对齐 vue 的 courseware-upload-area--stable） */
+.cw-upload-area--stable {
+  display: block;
+  padding: 12px;
+  text-align: left;
+}
+
+.cw-upload-area--stable.is-dragging {
+  border-color: var(--cw-accent);
+  background: #fbf5f2;
+}
+
+.cw-upload-placeholder {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 4px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+}
+
+.cw-upload-status {
+  display: grid;
+  gap: 8px;
+}
+
+.cw-upload-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border: 1px solid #e5ded8;
+  border-radius: 8px;
+  background: #f8f5f3;
+  box-shadow: var(--cw-shadow-sm);
+}
+
+.cw-upload-item__body {
+  min-width: 0;
+  flex: 1;
+}
+
+.cw-upload-item__line {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.cw-upload-item__ext {
+  flex: none;
+  color: #9a9396;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.cw-upload-item__ok {
+  color: #3b8f72;
+  font-size: 11px;
+}
+
+.cw-upload-item__meta {
+  color: #9a9396;
+  font-size: 11px;
+}
+
+.cw-upload-item__error {
+  color: #b42318;
+  font-size: 11px;
+}
+
+.cw-upload-action {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--cw-muted);
+  font-size: 12px;
+  transition: all 0.18s ease;
+}
+
+.cw-upload-action:hover {
+  background: #efe9e5;
+  color: var(--cw-ink);
+}
+
+.cw-upload-action.is-primary {
+  color: var(--cw-accent);
+  font-weight: 600;
+}
+
+.cw-upload-action.is-danger:hover {
+  background: #fdecea;
+  color: #b42318;
+}
+
+/* 演示辅助：点一下就走完整条上传链路 */
+.cw-upload-demo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.cw-upload-demo__label {
+  color: var(--cw-subtle);
+  font-size: 11.5px;
+}
+
+.cw-upload-demo__chip {
+  padding: 3px 10px;
+  border: 1px dashed #d9cfc9;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--cw-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+}
+
+.cw-upload-demo__chip:hover {
+  border-color: var(--cw-accent-border);
+  background: var(--cw-accent-subtle);
+  color: var(--cw-accent);
+}
+
+.cw-upload-demo__check {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--cw-subtle);
+  font-size: 11.5px;
+  cursor: pointer;
+}
+
+.cw-upload-demo__check input {
+  accent-color: var(--cw-accent);
+}
+
+.cw-upload-notice {
+  margin: 10px 0 0;
+  color: #b42318;
+  font-size: 12px;
+}
+
+/* 断点续传（对齐 vue 的 recoverableUploads） */
+.cw-resume {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 14px 16px;
+  border: 1px solid #fde8c8;
+  border-radius: 12px;
+  background: rgb(255 248 237 / 70%);
+}
+
+.cw-resume__head {
+  display: grid;
+  gap: 2px;
+}
+
+.cw-resume__head strong {
+  color: #3f3a3d;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.cw-resume__head span {
+  color: #766f73;
+  font-size: 11.5px;
+}
+
+.cw-resume__item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border: 1px solid #e5ded8;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: var(--cw-shadow-sm);
+}
+
 .cw-upload-area__text {
   display: grid;
   gap: 2px;
@@ -484,9 +674,12 @@
 }
 
 .cw-upload-item__name {
+  overflow: hidden;
   font-size: 13px;
   font-weight: 500;
   color: #3f3a3d;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .cw-bar {
@@ -503,6 +696,18 @@
   border-radius: 999px;
   background: linear-gradient(90deg, #b25d49, #c86e58);
   transition: width 0.3s ease;
+}
+
+.cw-bar.is-failed {
+  background: #fdecea;
+}
+
+.cw-bar.is-failed > span {
+  background: #d1584f;
+}
+
+.cw-bar.is-success > span {
+  background: #3b8f72;
 }
 
 .cw-entry-settings {
@@ -882,11 +1087,44 @@
 }
 
 .studio__body {
+  position: relative;
   display: grid;
   min-height: 0;
   flex: 1;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 20px;
+}
+
+/* 双栏中间的面板交换按钮（对齐 vue 的 studio__swap-panels） */
+.studio__swap-panels {
+  position: absolute;
+  z-index: 3;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border: 1px solid var(--cw-border);
+  border-radius: 50%;
+  background: #fff;
+  color: var(--cw-accent);
+  box-shadow: var(--cw-shadow-sm);
+  transform: translate(-50%, -50%);
+  transition: transform 0.35s ease, box-shadow 0.2s ease;
+}
+
+.studio__swap-panels:hover {
+  transform: translate(-50%, -50%) scale(1.08);
+  box-shadow: var(--cw-shadow-md);
+}
+
+.studio__conversation.is-swapped {
+  order: 2;
+}
+
+.studio__draft.is-swapped {
+  order: 1;
 }
 
 .studio__conversation,
@@ -2248,6 +2486,10 @@
   .studio__mobile-tabs {
     display: flex;
   }
+  /* 窄屏双栏已经叠起来了，交换按钮没有意义 */
+  .studio__swap-panels {
+    display: none;
+  }
   .studio__body {
     display: flex;
     flex-direction: column;
@@ -2420,14 +2662,39 @@
   color: #216247;
 }
 
+.cw-series-card__status.is-running {
+  background: #fff4df;
+  color: #9a5a13;
+}
+
+.cw-series-card__status.is-queued {
+  background: #f2ece8;
+  color: #78716c;
+}
+
+.cw-series-card__status.is-canceled {
+  background: #f2ece8;
+  color: #78716c;
+}
+
 .cw-series-card__status.is-failed {
   background: #fff0ee;
   color: #b42318;
 }
 
-.cw-series-card__status.is-pending {
-  background: #fff4df;
-  color: #9a5a13;
+/* 不可预览的子课件：整卡降级，避免点进去是空的 */
+.cw-series-card.is-unavailable {
+  opacity: 0.72;
+  cursor: not-allowed;
+}
+
+.cw-series-card[role="button"] {
+  cursor: pointer;
+}
+
+.cw-series-card[role="button"]:focus-visible {
+  outline: 2px solid var(--cw-accent);
+  outline-offset: 2px;
 }
 
 .cw-series-card__body {
@@ -2466,6 +2733,24 @@
   font-size: 12px;
 }
 
+.cw-series-card__note {
+  margin: 0;
+  color: var(--cw-muted);
+  font-size: 12px;
+}
+
+.cw-preview-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 10px;
+  background: rgb(255 255 255 / 92%);
+  color: var(--cw-muted);
+  font-size: 12.5px;
+}
+
 .cw-preview-bar {
   display: flex;
   align-items: center;
@@ -2484,6 +2769,8 @@
 }
 
 .cw-preview-stage iframe {
+  position: absolute;
+  inset: 0;
   display: block;
   height: 100%;
   width: 100%;

@@ -31,7 +31,7 @@ import {
   uniqueRisks,
   weekStart,
 } from "./inspectionEngine";
-import { regionBurden, visibleRegionIds } from "./inspectionBurden";
+import { regionBurden, visibleRegionIds, weekDates } from "./inspectionBurden";
 import { auditView, originalTaskId, scheduledIn } from "./auditHistory";
 
 /* ------------------------------------------------------------------ 类型 */
@@ -139,14 +139,43 @@ export interface AuditReport {
   id: string;
   title: string;
   verdict: "阻断" | "需关注" | "提示优化" | "通过";
+  /** 一句话结论，用于卡片标题与导出。 */
   summary: string;
+  /**
+   * 面向管理者的一段话汇报：先说结论，再说问题在哪、影响多少人，最后给建议。
+   * 全部由规则结果拼装，不引入模型编造的数字。
+   */
+  briefing: string;
   metrics: AuditFact[];
   findings: AuditFinding[];
   actions: string[];
   scope: string;
+  /** 区域对比图的数据点（按人均分钟降序）。 */
+  regions: AuditRegionPoint[];
+  /** 本周每天的最忙一人的排期，用来解释「时间集中」。 */
+  days: AuditDayPoint[];
+  /** 单日排期上限（分钟），作为日曲线的参考线。 */
+  dailyLimitMinutes: number;
   /** 报告引用的数据来源与口径。 */
   sources: string[];
   ruleVersion: string;
+}
+
+/** 区域对比图：均值、容量基线与超容量人数。 */
+export interface AuditRegionPoint {
+  regionId: string;
+  name: string;
+  meanMinutes: number;
+  capacityMinutes: number;
+  overCapacityCount: number;
+  taskCount: number;
+}
+
+/** 日排期曲线：这一周每天最忙 / 平均每人的排期分钟。 */
+export interface AuditDayPoint {
+  day: string;
+  peakMinutes: number;
+  meanMinutes: number;
 }
 
 export interface AuditPlan {
@@ -240,6 +269,22 @@ export const AUDIT_TOOL_LIST: {
     permission: "supervisor:schedule:write",
   },
 ];
+
+/**
+ * 每个工具执行前的一句话旁白（管理者视角）：
+ * 让「查询过程」读起来像 AI 员工在汇报进度，而不是一堆工具名。
+ */
+export const AUDIT_STEP_NARRATION: Record<AuditToolId, string> = {
+  query_scope: "先确认我能看到哪些区域、门店和在岗人员",
+  check_data_gaps: "再看哪些任务的必填字段还是空的",
+  query_training_overview: "汇总这段时间布置了多少任务、压在多少人身上",
+  query_region_comparison: "把每个区域横向比一遍，看哪里最挤",
+  query_product_stats: "按品类看看覆盖到哪些区域",
+  query_learning_completion: "看学员的完成率、逾期和考试成绩",
+  run_inspection_rules: "执行 A–G 规则，判定超容量、重复布置与数据不足",
+  save_inspection_record: "把这次结论写成一条审计记录",
+  save_schedule: "把这个审计设成每周自动跑",
+};
 
 /* -------------------------------------------------------------- 小工具 */
 
@@ -1525,20 +1570,84 @@ export function buildAuditReport(
   ].slice(0, 5);
   const scopeText = `${ctx.scopeLabel} · ${ctx.weeks.length > 1 ? `${ctx.weeks.length} 个周期（${ctx.weeks[0].slice(5)} ~ ${ctx.week.slice(5)}）` : WEEK_LABEL(ctx.week)}${ctx.categories.length ? ` · 品类 ${ctx.categories.join("、")}` : ""} · 覆盖 ${scopedTasks(state, ctx).length} 项任务 / ${known} 名可计工时 BA`;
 
+  /* 汇报用的两块数据：区域人均对比 + 本周每天的排期峰值。 */
+  const regions: AuditRegionPoint[] = [
+    ...burdensFor(state, ctx, visibleRegionIds(state, ctx.actor)),
+  ]
+    .sort((a, b) => b.meanMinutes - a.meanMinutes)
+    .map((item) => ({
+      regionId: item.regionId,
+      name: item.regionName,
+      meanMinutes: item.meanMinutes,
+      capacityMinutes: item.capacityMinutes,
+      overCapacityCount: item.overCapacityCount,
+      taskCount: item.taskCount,
+    }));
+  const days: AuditDayPoint[] = weekDates(ctx.week).map((day) => {
+    let peak = 0;
+    let total = 0;
+    let counted = 0;
+    for (const region of regionAggregates(state, ctx.week, ctx.today, ctx.regionIds))
+      for (const person of region.people) {
+        if (person.unknownTaskCount > 0) continue;
+        const minutes = person.items
+          .filter((item) => item.day === day)
+          .reduce((sum, item) => sum + item.minutes, 0);
+        peak = Math.max(peak, minutes);
+        total += minutes;
+        counted += 1;
+      }
+    return {
+      day,
+      peakMinutes: Math.round(peak),
+      meanMinutes: counted ? Math.round(total / counted) : 0,
+    };
+  });
+  const taskCount = scopedTasks(state, ctx).length;
+  const overCapacity = regions.reduce((sum, item) => sum + item.overCapacityCount, 0);
+  const heaviest = regions.find((item) => item.taskCount > 0) ?? null;
+  const duplicated = new Set(
+    risks
+      .filter((risk) => ["C3", "C5", "D2"].includes(risk.ruleId))
+      .flatMap((risk) => risk.taskIds),
+  );
+  const peakDay = days.reduce<AuditDayPoint | null>(
+    (worst, point) => (!worst || point.peakMinutes > worst.peakMinutes ? point : worst),
+    null,
+  );
+  const dayLabel = (day: string) => day.slice(5).replace("-", "/");
+  const coveredPeople = new Set(
+    scopedTasks(state, ctx).flatMap((task) => task.audience.resolvedPersonIds ?? []),
+  ).size;
+  const briefing = [
+    `${ctx.scopeLabel}这段时间一共布置 ${taskCount} 项培训任务，覆盖 ${coveredPeople} 名 BA，人均排期 ${minutesText(mean)}（按 ${known} 名工时可计的 BA 计算）${heaviest ? `；${heaviest.name}最重，人均 ${minutesText(heaviest.meanMinutes)}` : ""}。`,
+    risks.length === 0
+      ? "规则集没有命中问题，这个量在可承受范围内，可以按计划往下走。"
+      : `问题主要集中在「${risks[0].ruleName}」这类情况：${risks.length} 条结论里高风险 ${high} 条、中风险 ${medium} 条${insufficient ? `、数据不全暂时判不了 ${insufficient} 条` : ""}；${overCapacity ? `有 ${overCapacity} 人的周排期超过容量基线` : "暂时没有人超过周容量基线"}${duplicated.size ? `，${duplicated.size} 项任务把同一内容重复布置给同一批人` : ""}${peakDay && peakDay.peakMinutes > state.policy.dailyLimitMinutes ? `，最挤的一天（${dayLabel(peakDay.day)}）单人要花 ${minutesText(peakDay.peakMinutes)}，已经超过每天 ${state.policy.dailyLimitMinutes} 分钟的承受线` : ""}。`,
+    risks.length
+      ? `建议先做这一步：${actions[0]}`
+      : "建议保持现在的排期节奏，下个周期再看变化。",
+  ].join("");
+
   return {
     id: `report-${ctx.week}-${hex(`${ctx.scopeLabel}|${ctx.focus}|${ctx.categories.join(",")}`)}`,
     title: `${ctx.scopeLabel} · ${FOCUS_LABELS[ctx.focus]}审计报告`,
     verdict,
+    briefing,
     summary:
       risks.length === 0
         ? `${scopeText}；本期没有命中审计规则，人均 ${minutesText(mean)}，可以按计划发布。`
         : `${scopeText}；命中 ${risks.length} 条结论（高风险 ${high}、中风险 ${medium}、数据不足 ${insufficient}），影响 ${people.size} 名 BA、${tasks.size} 项任务，人均 ${minutesText(mean)}，${burdens.reduce((sum, item) => sum + item.overCapacityCount, 0)} 人超出区域容量。`,
     metrics: [
-      { label: "审计结论", value: verdict },
-      { label: "命中规则", value: `${risks.length} 条` },
-      { label: "影响 BA", value: `${people.size} 人` },
-      { label: "影响任务", value: `${tasks.size} 项` },
-      { label: "人均工时", value: minutesText(mean) },
+      { label: "人均工时", value: minutesText(mean), hint: `${known} 名可计工时 BA 的平均排期` },
+      { label: "影响 BA", value: `${people.size} 人`, hint: "命中结论的任务实际压到的人" },
+      {
+        label: "超容量",
+        value: overCapacity ? `${overCapacity} 人` : "无",
+        hint: `周排期超过区域容量基线的人数（默认 ${state.policy.weeklyCapacityMinutes} 分钟）`,
+      },
+      { label: "命中结论", value: `${risks.length} 条`, hint: `高风险 ${high} · 中风险 ${medium} · 数据不足 ${insufficient}` },
+      { label: "覆盖任务", value: `${taskCount} 项`, hint: "本次口径下纳入审计的任务数" },
       {
         label: "需人工确认",
         value: confirmations.length ? `${confirmations.length} 人` : "无",
@@ -1547,6 +1656,9 @@ export function buildAuditReport(
     findings,
     actions,
     scope: scopeText,
+    regions,
+    days,
+    dailyLimitMinutes: state.policy.dailyLimitMinutes,
     sources: [
       "业务库 · 学习 / 练习 / 考试 / 媒体采集任务",
       "业务库 · 人员归属、在岗状态与名单快照",
