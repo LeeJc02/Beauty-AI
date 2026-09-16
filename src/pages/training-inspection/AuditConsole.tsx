@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
+  ArrowRight,
   Bot,
   Check,
   ChevronDown,
@@ -31,8 +32,8 @@ import {
   planFor,
   runAuditTool,
   specFor,
-  type AuditError,
   type AuditContext,
+  type AuditError,
   type AuditReport,
   type AuditToolId,
   type AuditToolOutput,
@@ -45,7 +46,8 @@ import type {
   InspectionState,
   RiskLevel,
 } from "../../lib/inspectionTypes";
-import { Chip, SectionHeading, jakartaStamp } from "./shared";
+import { jakartaStamp } from "./shared";
+import "./audit-console.css";
 
 /* ------------------------------------------------------------------ 类型 */
 
@@ -72,7 +74,6 @@ type ConsoleItem =
       kind: "report";
       id: string;
       report: AuditReport;
-      /** 报告对应的查询条件：报告上的动作要沿用它，不能退回页面默认周期。 */
       ctx: AuditContext;
     };
 
@@ -80,64 +81,72 @@ const uid = () => `audit-${Math.random().toString(36).slice(2, 9)}`;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const LEVEL_TONE: Record<RiskLevel, string> = {
-  high: "bg-rose-50 text-rose-700 ring-rose-200",
-  medium: "bg-amber-50 text-amber-700 ring-amber-200",
-  low: "bg-sky-50 text-sky-700 ring-sky-200",
-  insufficient: "bg-slate-100 text-slate-600 ring-slate-200",
+/** 审计步骤：与「生成课件」一样用四段轨道表达进度。 */
+export const AUDIT_STEPS = ["补齐条件", "工具取数", "规则审计", "报告"] as const;
+
+function auditStepIndex(items: ConsoleItem[], pending: boolean) {
+  if (pending) return 0;
+  if (items.some((item) => item.kind === "report")) return 3;
+  if (items.some((item) => item.kind === "tool" && item.spec.id === "run_inspection_rules"))
+    return 2;
+  if (items.some((item) => item.kind === "tool")) return 1;
+  return 0;
+}
+
+const LEVEL_CLASS: Record<RiskLevel, string> = {
+  high: "audit-chip--high",
+  medium: "audit-chip--medium",
+  low: "audit-chip--low",
+  insufficient: "audit-chip--insufficient",
 };
 
-const VERDICT_TONE: Record<AuditReport["verdict"], string> = {
-  阻断: "bg-rose-50 text-rose-700 ring-rose-200",
-  需关注: "bg-amber-50 text-amber-700 ring-amber-200",
-  提示优化: "bg-sky-50 text-sky-700 ring-sky-200",
-  通过: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+const VERDICT_CLASS: Record<AuditReport["verdict"], string> = {
+  阻断: "audit-chip--high",
+  需关注: "audit-chip--medium",
+  提示优化: "audit-chip--low",
+  通过: "audit-chip--ok",
 };
 
-const ERROR_TONE: Record<AuditError["kind"], string> = {
-  permission: "bg-amber-50 text-amber-800 ring-amber-200",
-  data: "bg-sky-50 text-sky-800 ring-sky-200",
-  system: "bg-rose-50 text-rose-700 ring-rose-200",
+const ERROR_CLASS: Record<AuditError["kind"], string> = {
+  permission: "audit-error--permission",
+  data: "audit-error--data",
+  system: "audit-error--system",
 };
 
-const ERROR_KIND_LABEL: Record<AuditError["kind"], string> = {
+const ERROR_LABEL: Record<AuditError["kind"], string> = {
   permission: "权限问题",
   data: "业务数据问题",
   system: "系统问题",
 };
 
-/** 保存类/定时类意图直接落到对应工具，不走整条计划。 */
 const toolIntentOf = (text: string): AuditToolId | null => {
   if (/保存.*记录|存成?记录|留档|归档/.test(text)) return "save_inspection_record";
-  if (/每周|定时|订阅|自动跑|自动审计|自动审计|定期/.test(text))
-    return "save_schedule";
+  if (/每周|定时|订阅|自动跑|自动审计|自动巡检|定期/.test(text)) return "save_schedule";
   return null;
 };
 
-function EventTag({ name }: { name: string }) {
+function Chip({
+  children,
+  tone,
+  title,
+}: {
+  children: React.ReactNode;
+  tone?: string;
+  title?: string;
+  key?: React.Key;
+}) {
   return (
-    <span className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 font-mono text-[9.5px] text-muted-foreground ring-1 ring-border">
-      <Terminal size={9} />
-      {name}
+    <span className={`audit-chip ${tone ?? ""}`} title={title}>
+      {children}
     </span>
   );
 }
 
-function OwnerBadge({ spec }: { spec: AuditToolSpec }) {
+function EventTag({ name }: { name: string }) {
   return (
-    <span
-      className={`rounded px-1.5 py-0.5 text-[9.5px] font-semibold ring-1 ${
-        spec.owner === "adm"
-          ? "bg-primary/10 text-primary ring-primary/25"
-          : "bg-secondary text-secondary-foreground ring-primary/15"
-      }`}
-      title={
-        spec.owner === "adm"
-          ? "ADM 数据工具：每次调用都由 ADM 重新检查权限与参数"
-          : "Supervisor 本地确定性计算"
-      }
-    >
-      {spec.owner === "adm" ? "ADM" : "Supervisor"}
+    <span className="audit-chip audit-chip--event">
+      <Terminal size={9} />
+      {name}
     </span>
   );
 }
@@ -151,210 +160,159 @@ function ToolCallCard({ item }: { item: Extract<ConsoleItem, { kind: "tool" }> }
   const output = item.output;
   return (
     <div
-      className={`rounded-lg bg-background ring-1 ${
-        failed
-          ? "ring-amber-300"
-          : done
-            ? "ring-foreground/10"
-            : "ring-primary/30"
+      className={`audit-card audit-card--tool ${
+        failed ? "audit-card--error" : ""
       }`}
     >
-      <div className="flex items-start gap-2 px-2.5 py-2">
+      <div className="audit-card__head">
         <span
-          className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full ring-1 ${
-            failed
-              ? "bg-amber-50 text-amber-600 ring-amber-200"
-              : done
-                ? "bg-emerald-50 text-emerald-600 ring-emerald-200"
-                : "bg-primary/10 text-primary ring-primary/25"
-          }`}
+          style={{
+            display: "inline-flex",
+            height: 20,
+            width: 20,
+            alignItems: "center",
+            justifyContent: "center",
+            borderRadius: 999,
+            color: failed ? "#b45309" : done ? "#047857" : "var(--cw-accent)",
+            background: failed ? "#fff8ed" : done ? "#ecfdf5" : "var(--cw-accent-subtle)",
+            flex: "none",
+          }}
         >
           {failed ? (
             <AlertTriangle size={11} />
           ) : done ? (
             <Check size={11} />
           ) : (
-            <Loader2 size={11} className="animate-spin" />
+            <Loader2 size={11} className="cw-spin" />
           )}
         </span>
-        <div className="grid min-w-0 flex-1 gap-1">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground">
-              {item.spec.name}
-            </code>
-            <span className="text-[11.5px] font-medium text-foreground">
-              {item.spec.title}
-            </span>
-            <OwnerBadge spec={item.spec} />
-            <EventTag name={item.event} />
-            {done && output ? (
-              <span className="font-mono text-[10px] text-muted-foreground">
-                {output.traceId} · {output.scanned} · {output.ms}ms
-              </span>
-            ) : failed ? (
-              <span className="font-mono text-[10px] text-muted-foreground">
-                {item.error?.code}
-              </span>
-            ) : (
-              <span className="text-[10.5px] text-muted-foreground">调用中…</span>
-            )}
-          </div>
-          <div className="flex flex-wrap items-center gap-1">
-            <span
-              className="inline-flex items-center gap-1 rounded bg-background px-1.5 py-0.5 font-mono text-[9.5px] text-muted-foreground ring-1 ring-border"
-              title="ADM 在执行工具前再次校验权限码与参数"
-            >
-              <KeyRound size={9} />
-              {item.spec.permission}
-            </span>
-            {item.spec.params.map((param) => (
-              <span
-                key={`${param.label}-${param.value}`}
-                className="inline-flex items-center gap-1 rounded bg-secondary px-1.5 py-0.5 text-[10px] text-secondary-foreground ring-1 ring-primary/10"
-              >
-                <span className="text-muted-foreground">{param.label}</span>
-                <span className="font-medium">{param.value}</span>
-              </span>
-            ))}
-          </div>
-          {!done && !failed ? (
-            <div className="mt-0.5 h-1 w-full overflow-hidden rounded-full bg-muted">
-              <div className="h-full w-1/3 animate-pulse rounded-full bg-primary/50" />
-            </div>
-          ) : null}
-          {failed && item.error ? (
-            <div className="grid gap-1">
-              <div
-                className={`flex flex-wrap items-center gap-1.5 rounded-md px-2 py-1.5 text-[11.5px] leading-relaxed ring-1 ${ERROR_TONE[item.error.kind]}`}
-              >
-                <span className="font-semibold">
-                  {ERROR_KIND_LABEL[item.error.kind]} · {item.error.code}
-                </span>
-                <span>{item.error.userMessage}</span>
-              </div>
-              <div className="flex flex-wrap gap-1.5 text-[10px] text-muted-foreground">
-                <span className="rounded bg-muted px-1.5 py-0.5 font-mono">
-                  模型可见：{item.error.modelMessage}
-                </span>
-                <span className="rounded bg-muted px-1.5 py-0.5">
-                  {item.error.retryable ? "可重试" : "不可重试"}
-                </span>
-                <span className="rounded bg-muted px-1.5 py-0.5">
-                  {item.error.needUserInput ? "需要用户补充信息" : "无需用户补充"}
-                </span>
-              </div>
-            </div>
-          ) : null}
-          {done && output ? (
-            <>
-              <div className="text-[11.5px] leading-relaxed text-foreground">
-                {output.headline}
-              </div>
-              {output.facts.length ? (
-                <div className="grid gap-1 sm:grid-cols-2 xl:grid-cols-4">
-                  {output.facts.map((fact, factIndex) => (
-                    <div
-                      key={`${factIndex}-${fact.label}`}
-                      className="rounded-md bg-muted/50 px-2 py-1.5"
-                      title={fact.hint}
-                    >
-                      <div className="text-[10px] text-muted-foreground">
-                        {fact.label}
-                      </div>
-                      <div className="text-[12px] font-semibold text-foreground">
-                        {fact.value}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-              {output.error ? (
-                <div
-                  className={`flex flex-wrap items-center gap-1.5 rounded-md px-2 py-1.5 text-[10.5px] ring-1 ${ERROR_TONE[output.error.kind]}`}
-                >
-                  <span className="font-semibold">
-                    {ERROR_KIND_LABEL[output.error.kind]} · {output.error.code}
-                  </span>
-                  <span>{output.error.userMessage}</span>
-                </div>
-              ) : null}
-              <button
-                type="button"
-                className="inspection-link w-fit"
-                onClick={() => setOpen((value) => !value)}
-              >
-                {open ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
-                {open ? "收起工具返回" : "展开工具返回"}
-              </button>
-              {open ? (
-                <div className="grid gap-2 border-t border-border/70 pt-2">
-                  {output.table ? (
-                    <div className="overflow-x-auto">
-                      <table className="w-full border-collapse text-[11px]">
-                        <thead>
-                          <tr className="text-left text-muted-foreground">
-                            {output.table.columns.map((column) => (
-                              <th
-                                key={column}
-                                className="whitespace-nowrap border-b border-border/70 px-2 py-1 font-medium"
-                              >
-                                {column}
-                              </th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {output.table.rows.map((row, rowIndex) => (
-                            <tr key={rowIndex}>
-                              {row.map((cell, cellIndex) => (
-                                <td
-                                  key={cellIndex}
-                                  className="border-b border-border/40 px-2 py-1 align-top text-foreground"
-                                >
-                                  {cell}
-                                </td>
-                              ))}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : null}
-                  <div className="grid gap-1">
-                    <div className="text-[10.5px] font-semibold text-foreground">
-                      口径说明
-                    </div>
-                    {output.notes.map((note, index) => (
-                      <div
-                        key={`${index}-${note}`}
-                        className="flex gap-1.5 text-[10.5px] leading-relaxed text-muted-foreground"
-                      >
-                        <span className="mt-1.5 size-1 shrink-0 rounded-full bg-primary/50" />
-                        <span>{note}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="grid gap-1">
-                    <div className="text-[10.5px] font-semibold text-foreground">
-                      数据来源
-                    </div>
-                    <div className="flex flex-wrap gap-1">
-                      {output.sources.map((source, sourceIndex) => (
-                        <span
-                          key={`${sourceIndex}-${source}`}
-                          className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground"
-                        >
-                          {source}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              ) : null}
-            </>
-          ) : null}
-        </div>
+        <span className="audit-tool-name">{item.spec.name}</span>
+        <span style={{ fontSize: 11.5, fontWeight: 600, color: "var(--cw-ink)" }}>
+          {item.spec.title}
+        </span>
+        <Chip tone={item.spec.owner === "adm" ? "audit-chip--accent" : undefined}>
+          {item.spec.owner === "adm" ? "ADM" : "Supervisor"}
+        </Chip>
+        <EventTag name={item.event} />
+        {done && output ? (
+          <span className="audit-meta audit-mono">
+            {output.traceId} · {output.scanned} · {output.ms}ms
+          </span>
+        ) : failed ? (
+          <span className="audit-meta audit-mono">{item.error?.code}</span>
+        ) : (
+          <span className="audit-meta">调用中…</span>
+        )}
       </div>
+
+      <div className="audit-card__head">
+        <Chip title="ADM 在执行工具前再次校验权限码与参数">
+          <KeyRound size={9} />
+          {item.spec.permission}
+        </Chip>
+        {item.spec.params.map((param) => (
+          <Chip key={`${param.label}-${param.value}`}>
+            <span style={{ color: "var(--cw-muted)" }}>{param.label}</span>
+            {param.value}
+          </Chip>
+        ))}
+      </div>
+
+      {!done && !failed ? (
+        <div className="cw-bar" style={{ marginTop: 2 }}>
+          <span style={{ width: "36%" }} />
+        </div>
+      ) : null}
+
+      {failed && item.error ? (
+        <div className={`audit-error ${ERROR_CLASS[item.error.kind]}`}>
+          <strong>
+            {ERROR_LABEL[item.error.kind]} · {item.error.code}
+          </strong>
+          <span>{item.error.userMessage}</span>
+          <span className="audit-meta audit-mono">模型可见：{item.error.modelMessage}</span>
+          <span className="audit-meta">{item.error.retryable ? "可重试" : "不可重试"}</span>
+          <span className="audit-meta">
+            {item.error.needUserInput ? "需要用户补充信息" : "无需用户补充"}
+          </span>
+        </div>
+      ) : null}
+
+      {done && output ? (
+        <>
+          <div className="audit-headline">{output.headline}</div>
+          {output.facts.length ? (
+            <div className="audit-facts">
+              {output.facts.map((fact, index) => (
+                <div key={`${index}-${fact.label}`} className="audit-fact" title={fact.hint}>
+                  <span>{fact.label}</span>
+                  <strong>{fact.value}</strong>
+                </div>
+              ))}
+            </div>
+          ) : null}
+          {output.error ? (
+            <div className={`audit-error ${ERROR_CLASS[output.error.kind]}`}>
+              <strong>
+                {ERROR_LABEL[output.error.kind]} · {output.error.code}
+              </strong>
+              <span>{output.error.userMessage}</span>
+            </div>
+          ) : null}
+          <button
+            type="button"
+            className="studio__text-button"
+            style={{ width: "fit-content", paddingLeft: 0 }}
+            onClick={() => setOpen((value) => !value)}
+          >
+            {open ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
+            {open ? "收起工具返回" : "展开工具返回"}
+          </button>
+          {open ? (
+            <div className="audit-detail">
+              {output.table ? (
+                <div style={{ overflowX: "auto" }}>
+                  <table className="audit-table">
+                    <thead>
+                      <tr>
+                        {output.table.columns.map((column) => (
+                          <th key={column}>{column}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {output.table.rows.map((row, rowIndex) => (
+                        <tr key={rowIndex}>
+                          {row.map((cell, cellIndex) => (
+                            <td key={cellIndex}>{cell}</td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : null}
+              <div className="audit-section-title">口径说明</div>
+              <div className="audit-notes">
+                {output.notes.map((note, index) => (
+                  <div key={`${index}-${note}`} className="audit-notes__row">
+                    <span />
+                    <span>{note}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="audit-section-title">数据来源</div>
+              <div className="audit-sources">
+                {output.sources.map((source, index) => (
+                  <span key={`${index}-${source}`} className="audit-chip">
+                    {source}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </>
+      ) : null}
     </div>
   );
 }
@@ -363,86 +321,74 @@ function ToolCallCard({ item }: { item: Extract<ConsoleItem, { kind: "tool" }> }
 
 function ReportCard({
   report,
+  busy,
   onFocusTask,
   onExport,
   onRunTool,
-  busy,
 }: {
   report: AuditReport;
+  busy: boolean;
   onFocusTask: (taskId: string) => void;
   onExport: (report: AuditReport) => void;
   onRunTool: (id: AuditToolId) => void;
-  busy: boolean;
 }) {
   const [acked, setAcked] = useState(false);
   return (
-    <div className="rounded-xl bg-card p-3 ring-1 ring-primary/25">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
+    <div className="audit-card audit-card--report">
+      <div className="audit-card__head">
+        <span
+          style={{
+            display: "inline-flex",
+            height: 20,
+            width: 20,
+            alignItems: "center",
+            justifyContent: "center",
+            borderRadius: 999,
+            background: "var(--cw-accent)",
+            color: "#fff",
+            flex: "none",
+          }}
+        >
           <FileText size={11} />
         </span>
-        <span className="text-[12.5px] font-semibold text-foreground">
-          {report.title}
-        </span>
-        <Chip tone={VERDICT_TONE[report.verdict]} className="font-semibold">
-          {report.verdict}
-        </Chip>
+        <span style={{ fontSize: 12.5, fontWeight: 600 }}>{report.title}</span>
+        <Chip tone={VERDICT_CLASS[report.verdict]}>{report.verdict}</Chip>
         <EventTag name="report_completed" />
-        <span className="font-mono text-[10px] text-muted-foreground">
-          规则集 {report.ruleVersion}
-        </span>
+        <span className="audit-meta audit-mono">规则集 {report.ruleVersion}</span>
       </div>
-      <p className="mt-2 text-[11.5px] leading-relaxed text-foreground">
+
+      <p className="audit-headline" style={{ margin: 0 }}>
         {report.summary}
       </p>
-      <div className="mt-2 grid gap-1.5 sm:grid-cols-3">
-        {report.metrics.map((metric, metricIndex) => (
-          <div
-            key={`${metricIndex}-${metric.label}`}
-            className="rounded-md bg-muted/50 px-2 py-1.5"
-          >
-            <div className="text-[10px] text-muted-foreground">{metric.label}</div>
-            <div className="text-[12px] font-semibold text-foreground">
-              {metric.value}
-            </div>
+
+      <div className="audit-report__metrics">
+        {report.metrics.map((metric, index) => (
+          <div key={`${index}-${metric.label}`} className="audit-fact">
+            <span>{metric.label}</span>
+            <strong>{metric.value}</strong>
           </div>
         ))}
       </div>
 
       {report.findings.length ? (
-        <div className="mt-3 grid gap-2">
-          <div className="text-[11.5px] font-semibold text-foreground">
-            关键发现（{report.findings.length}）
-          </div>
-          {report.findings.map((finding, findingIndex) => (
-            <div
-              key={`${findingIndex}-${finding.ruleId}`}
-              className="grid gap-1 rounded-lg bg-muted/40 px-2.5 py-2"
-            >
-              <div className="flex flex-wrap items-center gap-1.5">
-                <Chip tone={LEVEL_TONE[finding.level]}>
-                  {LEVEL_LABELS[finding.level]}
-                </Chip>
-                <span className="rounded bg-background px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground ring-1 ring-border">
-                  {finding.ruleId}
-                </span>
-                <span className="text-[11.5px] font-medium text-foreground">
-                  {finding.title}
-                </span>
+        <>
+          <div className="audit-section-title">关键发现（{report.findings.length}）</div>
+          {report.findings.map((finding, index) => (
+            <div key={`${index}-${finding.ruleId}`} className="audit-finding">
+              <div className="audit-card__head">
+                <Chip tone={LEVEL_CLASS[finding.level]}>{LEVEL_LABELS[finding.level]}</Chip>
+                <span className="audit-tool-name">{finding.ruleId}</span>
+                <span style={{ fontSize: 11.5, fontWeight: 600 }}>{finding.title}</span>
               </div>
-              <div className="text-[11px] leading-relaxed text-muted-foreground">
-                {finding.detail}
-              </div>
-              <div className="text-[10.5px] leading-relaxed text-muted-foreground">
-                证据：{finding.evidence}
-              </div>
+              <div className="audit-finding__detail">{finding.detail}</div>
+              <div className="audit-finding__evidence">证据：{finding.evidence}</div>
               {finding.taskIds.length ? (
-                <div className="flex flex-wrap gap-1.5">
+                <div className="audit-options">
                   {finding.taskIds.slice(0, 3).map((taskId) => (
                     <button
                       key={taskId}
                       type="button"
-                      className="inspection-link"
+                      className="audit-option"
                       onClick={() => onFocusTask(taskId)}
                     >
                       看任务详情
@@ -452,79 +398,70 @@ function ReportCard({
               ) : null}
             </div>
           ))}
-        </div>
+        </>
       ) : null}
 
       {report.actions.length ? (
-        <div className="mt-3 grid gap-1">
-          <div className="text-[11.5px] font-semibold text-foreground">
-            整改建议（不自动改任务）
+        <>
+          <div className="audit-section-title">整改建议（不自动改任务）</div>
+          <div className="audit-notes">
+            {report.actions.map((action, index) => (
+              <div key={`${index}-${action}`} className="audit-notes__row">
+                <span style={{ marginTop: 6 }} />
+                <span style={{ color: "var(--cw-ink2)", fontSize: 11.5 }}>
+                  {index + 1}. {action}
+                </span>
+              </div>
+            ))}
           </div>
-          {report.actions.map((action, index) => (
-            <div
-              key={`${index}-${action}`}
-              className="flex gap-1.5 text-[11px] leading-relaxed text-foreground"
-            >
-              <span className="text-muted-foreground">{index + 1}.</span>
-              <span>{action}</span>
-            </div>
-          ))}
-        </div>
+        </>
       ) : null}
 
-      <div className="mt-3 grid gap-1 border-t border-border/70 pt-2.5">
-        <div className="text-[11px] font-semibold text-foreground">
-          数据来源与口径
-        </div>
-        <div className="flex flex-wrap gap-1">
-          {report.sources.map((source, sourceIndex) => (
-            <span
-              key={`${sourceIndex}-${source}`}
-              className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground"
-            >
+      <div className="audit-detail">
+        <div className="audit-section-title">数据来源与口径</div>
+        <div className="audit-sources">
+          {report.sources.map((source, index) => (
+            <span key={`${index}-${source}`} className="audit-chip">
               {source}
             </span>
           ))}
         </div>
-        <div className="text-[10.5px] text-muted-foreground">{report.scope}</div>
+        <div className="audit-meta">{report.scope}</div>
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-border/70 pt-2.5">
+      <div className="audit-actions" style={{ borderTop: "1px solid var(--cw-border-subtle)", paddingTop: 10 }}>
         <button
           type="button"
-          className="inspection-button primary"
+          className="cw-primary"
           disabled={busy}
           onClick={() => onRunTool("save_inspection_record")}
         >
-          <ShieldCheck size={13} /> 保存审计记录
+          <ShieldCheck size={14} /> 保存审计记录
         </button>
         <button
           type="button"
-          className="inspection-button"
+          className="cw-ghost"
           disabled={busy}
           onClick={() => onRunTool("save_schedule")}
         >
           <Sparkles size={13} /> 每周一自动审计
         </button>
-        <button
-          type="button"
-          className="inspection-button"
-          onClick={() => onExport(report)}
-        >
+        <button type="button" className="cw-ghost" onClick={() => onExport(report)}>
           <Download size={13} /> 导出报告
         </button>
         <button
           type="button"
-          className="inspection-button"
-          onClick={() => setAcked(true)}
+          className="cw-ghost"
           disabled={acked}
+          onClick={() => setAcked(true)}
         >
-          <Check size={13} /> {acked ? "已标记已确认" : "标记已确认"}
+          <Check size={13} /> {acked ? "已确认" : "标记已确认"}
         </button>
       </div>
+
       {acked ? (
-        <div className="mt-2 rounded-md bg-emerald-50/70 px-2.5 py-1.5 text-[10.5px] text-emerald-800 ring-1 ring-emerald-200">
-          已记录「{report.title}」确认结果（原型演示）。Agent 只给结论与证据，不修改培训任务、人员、组织与成绩；处置动作需要人工确认后才写入新版本。
+        <div className="audit-error audit-error--data" style={{ background: "#ecfdf5", borderColor: "#a7f3d0", color: "#047857" }}>
+          已记录「{report.title}」确认结果（原型演示）。Agent 只给结论与证据，不修改培训任务、人员、组织与成绩。
         </div>
       ) : null}
     </div>
@@ -550,17 +487,19 @@ export function AuditConsole({
 }) {
   const [items, setItems] = useState<ConsoleItem[]>([]);
   const [input, setInput] = useState("");
+  const [entryText, setEntryText] = useState("");
   const [running, setRunning] = useState(false);
+  const [entered, setEntered] = useState(false);
+  const [leaving, setLeaving] = useState(false);
   const listRef = useRef<HTMLDivElement | null>(null);
   const runRef = useRef(0);
   const runningRef = useRef(false);
   const liveRef = useRef({ state, week, today, actor });
   liveRef.current = { state, week, today, actor };
-  /** 待补齐的条件：排队问完才开始查。 */
   const [pending, setPending] = useState<{
     question: string;
     queue: Clarification[];
-    ctx: ReturnType<typeof auditContext>;
+    ctx: AuditContext;
   } | null>(null);
 
   const baseCtx = useMemo(
@@ -571,24 +510,19 @@ export function AuditConsole({
   const callCounts = useMemo(() => {
     const counts = new Map<AuditToolId, number>();
     for (const item of items)
-      if (item.kind === "tool")
-        counts.set(item.spec.id, (counts.get(item.spec.id) ?? 0) + 1);
+      if (item.kind === "tool") counts.set(item.spec.id, (counts.get(item.spec.id) ?? 0) + 1);
     return counts;
   }, [items]);
 
   const latestHeadline = useMemo(() => {
     const map = new Map<AuditToolId, string>();
     for (const item of items)
-      if (item.kind === "tool" && item.output)
-        map.set(item.spec.id, item.output.headline);
+      if (item.kind === "tool" && item.output) map.set(item.spec.id, item.output.headline);
     return map;
   }, [items]);
 
   useEffect(() => {
-    listRef.current?.scrollTo({
-      top: listRef.current.scrollHeight,
-      behavior: "smooth",
-    });
+    listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
   }, [items]);
 
   useEffect(
@@ -603,20 +537,14 @@ export function AuditConsole({
     setItems((previous) => [...previous, ...next]);
   }, []);
 
-  /** 执行工具计划：每一步都是一个 tool_call_started / tool_call_completed 事件。 */
   const runPlan = useCallback(
-    async (question: string, ctx: ReturnType<typeof auditContext>) => {
+    async (question: string, ctx: AuditContext) => {
       const token = (runRef.current += 1);
       runningRef.current = true;
       setRunning(true);
       const { state: current } = liveRef.current;
       const plan = planFor(current, ctx, question);
-      push({
-        kind: "agent",
-        id: uid(),
-        text: plan.intro,
-        event: "run_started",
-      });
+      push({ kind: "agent", id: uid(), text: plan.intro, event: "run_started" });
       for (const step of plan.steps) {
         if (token !== runRef.current) return;
         const spec = specFor(step, current, ctx, question);
@@ -626,10 +554,7 @@ export function AuditConsole({
           id: itemId,
           spec,
           status: "running",
-          event:
-            step === "run_inspection_rules"
-              ? "inspection_started"
-              : "tool_call_started",
+          event: step === "run_inspection_rules" ? "inspection_started" : "tool_call_started",
         });
         await sleep(240 + spec.params.length * 70);
         if (token !== runRef.current) return;
@@ -642,9 +567,7 @@ export function AuditConsole({
                   status: "done",
                   output,
                   event:
-                    step === "run_inspection_rules"
-                      ? "finding_created"
-                      : "tool_call_completed",
+                    step === "run_inspection_rules" ? "finding_created" : "tool_call_completed",
                 }
               : item,
           ),
@@ -652,26 +575,19 @@ export function AuditConsole({
         await sleep(110);
       }
       if (token !== runRef.current) return;
-      push({
-        kind: "report",
-        id: uid(),
-        report: buildAuditReport(current, ctx),
-        ctx,
-      });
+      push({ kind: "report", id: uid(), report: buildAuditReport(current, ctx), ctx });
       runningRef.current = false;
       setRunning(false);
     },
     [push],
   );
 
-  /** 手动只跑一个工具：保存类动作也走这里。 */
   const runTool = useCallback(
     async (id: AuditToolId, question?: string, override?: AuditContext) => {
       if (runningRef.current) return;
       const { state: current, week: currentWeek, today: currentToday, actor: currentActor } =
         liveRef.current;
-      const ctx =
-        override ?? auditContext(current, currentActor, currentWeek, currentToday);
+      const ctx = override ?? auditContext(current, currentActor, currentWeek, currentToday);
       const spec = specFor(id, current, ctx, question);
       if (id !== "save_inspection_record" && id !== "save_schedule") {
         const token = (runRef.current += 1);
@@ -685,13 +601,7 @@ export function AuditConsole({
             text: `只跑「${spec.title}」这一个工具，范围是${ctx.scopeLabel}、周期 ${ctx.week}。`,
             event: "run_started",
           },
-          {
-            kind: "tool",
-            id: uid(),
-            spec,
-            status: "running",
-            event: "tool_call_started",
-          },
+          { kind: "tool", id: uid(), spec, status: "running", event: "tool_call_started" },
         );
         await sleep(320);
         if (token !== runRef.current) return;
@@ -707,17 +617,10 @@ export function AuditConsole({
         setRunning(false);
         return;
       }
-      // 保存类：作为报告动作触发，直接产出调用卡，不再加一轮对话
       runningRef.current = true;
       setRunning(true);
       const itemId = uid();
-      push({
-        kind: "tool",
-        id: itemId,
-        spec,
-        status: "running",
-        event: "tool_call_started",
-      });
+      push({ kind: "tool", id: itemId, spec, status: "running", event: "tool_call_started" });
       await sleep(280);
       const output = runAuditTool(id, current, ctx, question);
       setItems((previous) =>
@@ -734,7 +637,6 @@ export function AuditConsole({
     [push, onToast],
   );
 
-  /** 权限类异常：当前账号看不到问题里点到的区域。 */
   const pushPermissionError = useCallback(
     (regionName: string, visible: string[], question: string) => {
       const spec = specFor("query_scope", liveRef.current.state, baseCtx);
@@ -771,7 +673,6 @@ export function AuditConsole({
     [actor.roleLabel, baseCtx, push],
   );
 
-  /** 用户提问入口：先判权限，再判条件是否齐全，最后执行计划。 */
   const ask = useCallback(
     async (raw: string) => {
       const question = raw.trim();
@@ -818,9 +719,12 @@ export function AuditConsole({
     [pending, push, pushPermissionError, runPlan, runTool],
   );
 
-  /** 补问作答：答完继续问下一条，问完就开跑。 */
   const answerClarify = useCallback(
-    async (item: Extract<ConsoleItem, { kind: "clarify" }>, value: string, label: string) => {
+    async (
+      item: Extract<ConsoleItem, { kind: "clarify" }>,
+      value: string,
+      label: string,
+    ) => {
       if (!pending) return;
       setItems((previous) =>
         previous.map((entry) =>
@@ -862,8 +766,10 @@ export function AuditConsole({
     );
   };
 
-  /** 补问阶段允许直接打字：把文本对到选项上，对不上就说明能听懂什么。 */
-  const answerByText = (item: Extract<ConsoleItem, { kind: "clarify" }>, text: string) => {
+  const answerByText = (
+    item: Extract<ConsoleItem, { kind: "clarify" }>,
+    text: string,
+  ) => {
     const options = item.clarification.options;
     const hit = options.find(
       (option) => text.includes(option.label) || option.value === text,
@@ -874,9 +780,7 @@ export function AuditConsole({
     }
     if (item.clarification.field === "region") {
       const region = liveRef.current.state.regions.find(
-        (entry) =>
-          text.includes(entry.name) &&
-          baseCtx.regionIds.includes(entry.id),
+        (entry) => text.includes(entry.name) && baseCtx.regionIds.includes(entry.id),
       );
       if (region) {
         void answerClarify(item, region.id, region.name);
@@ -907,12 +811,24 @@ export function AuditConsole({
     void ask(text);
   };
 
+  const startAudit = async (raw: string) => {
+    const question = raw.trim();
+    if (!question) return;
+    setLeaving(true);
+    await sleep(680);
+    setEntered(true);
+    setLeaving(false);
+    await ask(question);
+  };
+
   const restart = () => {
     runRef.current += 1;
     runningRef.current = false;
     setRunning(false);
     setPending(null);
     setItems([]);
+    setEntered(false);
+    setEntryText("");
   };
 
   const exportReport = (report: AuditReport) => {
@@ -921,7 +837,7 @@ export function AuditConsole({
       `生成时间：${jakartaStamp(new Date().toISOString())} · 数据版本 v${state.revision} · 规则集 ${report.ruleVersion}`,
       `审计范围：${report.scope}`,
       "",
-      `一、审计结论：${report.verdict}`,
+      `一、巡检结论：${report.verdict}`,
       report.summary,
       "",
       "二、关键指标",
@@ -947,8 +863,7 @@ export function AuditConsole({
       "六、Agent 工具调用记录（本次会话）",
       ...items
         .filter(
-          (item): item is Extract<ConsoleItem, { kind: "tool" }> =>
-            item.kind === "tool",
+          (item): item is Extract<ConsoleItem, { kind: "tool" }> => item.kind === "tool",
         )
         .map(
           (item) =>
@@ -971,370 +886,419 @@ export function AuditConsole({
     onToast(`报告已导出：${fileName}（浏览器默认下载目录）。`);
   };
 
-  const empty = items.length === 0;
   const liveClarify = pending
     ? items.find(
         (entry): entry is Extract<ConsoleItem, { kind: "clarify" }> =>
           entry.kind === "clarify" && !entry.answered,
       )
     : undefined;
+  const stepIndex = auditStepIndex(items, !!liveClarify);
+  const visibleItems = items.length
+    ? items
+    : ([
+        {
+          kind: "agent" as const,
+          id: "idle",
+          text: "Agent 会用白名单工具核对任务、人群、工时与规则口径，结论都带数据出处。先说说你想审计什么。",
+        },
+      ] as ConsoleItem[]);
 
-  return (
-    <div className="rounded-xl bg-gradient-to-br from-secondary/70 to-card ring-1 ring-primary/15">
-      <div className="flex flex-wrap items-start justify-between gap-2 p-3.5 pb-2">
-        <SectionHeading
-          title="数据审计 Agent"
-          hint="Supervisor 工作台：先补齐条件，再按白名单工具取数、跑审计规则，最后给带来源的报告"
-        />
-        <div className="flex flex-wrap items-center gap-1.5">
-          <Chip tone="bg-background text-muted-foreground ring-border">
-            <Database size={11} /> {baseCtx.scopeLabel}
-          </Chip>
-          <Chip tone="bg-background text-muted-foreground ring-border">
-            周期 {week}
-          </Chip>
-          <Chip tone="bg-primary/10 text-primary ring-primary/25">
-            <Wrench size={11} /> {AUDIT_TOOL_LIST.length} 个工具
-          </Chip>
-          {items.length ? (
-            <button type="button" className="inspection-button" onClick={restart}>
-              重新开始
-            </button>
-          ) : null}
-        </div>
-      </div>
-
-      <div className="grid gap-3 p-3.5 pt-1 lg:grid-cols-[minmax(0,1fr)_256px]">
-        {/* 左：对话 + 条件补齐 + 工具轨迹 + 报告 */}
-        <div className="grid min-w-0 gap-2">
-          <div
-            ref={listRef}
-            className="grid max-h-[640px] content-start gap-2.5 overflow-y-auto pr-0.5"
-          >
-            {empty ? (
-              <div className="grid gap-2.5 rounded-lg bg-background/70 p-3 ring-1 ring-foreground/10">
-                <div className="flex items-center gap-2 text-[12px] font-semibold text-foreground">
-                  <Sparkles size={13} className="text-primary" />
-                  问一个问题，或选一个现成的审计任务
-                </div>
-                <p className="text-[11.5px] leading-relaxed text-muted-foreground">
-                  我会先补齐条件（时间、地区、品类、关注方面），再确认可查范围，然后取培训概览、完成情况、区域与品类统计，
-                  执行 A–G 审计规则，最后给出带数据出处和规则版本的报告。每一步工具调用、权限码、traceId 和返回值都会留在这里。
-                </p>
-                <div className="grid gap-1.5 sm:grid-cols-2">
-                  {AUDIT_PRESETS.map((preset) => (
-                    <button
-                      key={preset.id}
-                      type="button"
-                      className="grid gap-0.5 rounded-lg bg-secondary/70 px-2.5 py-2 text-left ring-1 ring-primary/15 transition hover:bg-primary/10"
-                      onClick={() => void ask(preset.question)}
-                    >
-                      <span className="text-[11.5px] font-semibold text-foreground">
-                        {preset.label}
-                      </span>
-                      <span className="text-[10.5px] text-muted-foreground">
-                        {preset.hint}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-
-            {items.map((item) => {
-              if (item.kind === "user")
-                return (
-                  <div key={item.id} className="flex justify-end">
-                    <div className="grid max-w-[86%] gap-1 rounded-xl bg-primary px-3 py-2 text-[11.5px] leading-relaxed text-primary-foreground ring-1 ring-primary/30">
-                      <span className="flex items-center gap-1.5 text-[10px] opacity-80">
-                        <User size={10} /> 你
-                      </span>
-                      {item.text}
-                    </div>
-                  </div>
-                );
-              if (item.kind === "agent")
-                return (
-                  <div key={item.id} className="flex gap-2">
-                    <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/12 text-primary">
-                      <Bot size={13} />
-                    </span>
-                    <div className="grid max-w-[92%] gap-1 rounded-xl bg-background px-3 py-2 text-[11.5px] leading-relaxed text-foreground ring-1 ring-foreground/10">
-                      {item.event ? <EventTag name={item.event} /> : null}
-                      <span>{item.text}</span>
-                    </div>
-                  </div>
-                );
-              if (item.kind === "clarify") {
-                const multi = item.clarification.field === "category";
-                const active = liveClarify?.id === item.id;
-                return (
-                  <div key={item.id} className="flex gap-2">
-                    <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700">
-                      <KeyRound size={13} />
-                    </span>
-                    <div className="grid max-w-[92%] gap-1.5 rounded-xl bg-background px-3 py-2 ring-1 ring-amber-200">
-                      <EventTag name="clarification_required" />
-                      <span className="text-[11.5px] leading-relaxed text-foreground">
-                        {item.clarification.question}
-                      </span>
-                      {item.answered ? (
-                        <span className="inline-flex w-fit items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-[10.5px] font-semibold text-primary-foreground">
-                          <Check size={10} /> {item.answered}
-                        </span>
-                      ) : (
-                        <div className="flex flex-wrap gap-1">
-                          {item.clarification.options.map((option) => {
-                            const selected = item.picks.includes(option.value);
-                            return (
-                              <button
-                                key={option.value}
-                                type="button"
-                                title={option.hint}
-                                disabled={!active}
-                                className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10.5px] ring-1 transition disabled:opacity-50 ${
-                                  selected
-                                    ? "bg-primary text-primary-foreground ring-primary/30"
-                                    : "bg-secondary text-secondary-foreground ring-primary/15 hover:bg-primary/10"
-                                }`}
-                                onClick={() =>
-                                  multi
-                                    ? togglePick(item.id, option.value)
-                                    : void answerClarify(item, option.value, option.label)
-                                }
-                              >
-                                {selected ? <Check size={10} /> : null}
-                                {option.label}
-                              </button>
-                            );
-                          })}
-                          {multi ? (
-                            <button
-                              type="button"
-                              disabled={!active || !item.picks.length}
-                              className="rounded-full bg-primary px-2.5 py-0.5 text-[10.5px] font-semibold text-primary-foreground disabled:opacity-50"
-                              onClick={() =>
-                                void answerClarify(
-                                  item,
-                                  item.picks.join(","),
-                                  item.picks.join("、"),
-                                )
-                              }
-                            >
-                              下一步
-                            </button>
-                          ) : null}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              }
-              if (item.kind === "tool")
-                return (
-                  <div key={item.id} className="flex gap-2 pl-8">
-                    <div className="min-w-0 flex-1">
-                      <ToolCallCard item={item} />
-                    </div>
-                  </div>
-                );
-              return (
-                <div key={item.id} className="flex gap-2">
-                  <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/12 text-primary">
-                    <Bot size={13} />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <ReportCard
-                      report={item.report}
-                      onFocusTask={onFocusTask}
-                      onExport={exportReport}
-                      onRunTool={(id) => void runTool(id, undefined, item.ctx)}
-                      busy={running}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          <form
-            className="flex items-center gap-1.5"
-            onSubmit={(event) => {
-              event.preventDefault();
-              submit(input);
-            }}
-          >
-            <input
-              value={input}
-              onChange={(event) => setInput(event.target.value)}
-              disabled={running}
-              placeholder={
-                liveClarify
-                  ? "可以直接打字回答这一步，例如「上周」「南区」「全部品类」"
-                  : "问点什么，例如：最近培训情况怎么样？哪个区域工时压力最大？"
-              }
-              className="min-h-[36px] min-w-0 flex-1 rounded-lg border border-input bg-background px-3 text-[12px] outline-none focus:ring-2 focus:ring-primary/25 disabled:opacity-60"
-            />
-            {!empty && !liveClarify
-              ? AUDIT_PRESETS.slice(1, 3).map((preset) => (
+  if (!entered)
+    return (
+      <div className="cw-root" data-i18n-skip="true">
+        <div className={`cw-entry-flow ${leaving ? "cw-swap-out" : "cw-swap-in"}`}>
+          <div className="cw-entry-card audit-entry-card">
+            <div className="audit-entry-body">
+              <span className="cw-entry-badge">
+                <ShieldCheck size={14} /> 数据审计 Agent
+              </span>
+              <h1 className="audit-entry-title">想让 Agent 查什么？</h1>
+              <p className="audit-entry-hint">
+                说一句话就够了。Agent 会先补齐条件（时间、地区、品类、关注方面），再确认可查范围，
+                然后取概览、完成情况、区域与品类统计，执行 A–G 审计规则，最后给出带数据出处和规则版本的报告。
+              </p>
+              <textarea
+                className="cw-textarea"
+                style={{ minHeight: 96 }}
+                value={entryText}
+                onChange={(event) => setEntryText(event.target.value)}
+                onKeyDown={(event) => {
+                  if ((event.metaKey || event.ctrlKey) && event.key === "Enter")
+                    void startAudit(entryText);
+                }}
+                placeholder="例如：最近培训情况怎么样？哪个区域工时压力最大？哪些任务数据不全？"
+              />
+              <div className="audit-entry-examples">
+                <span className="cw-entry-examples-label">
+                  <Sparkles size={13} /> 可以这样问:
+                </span>
+                {AUDIT_PRESETS.map((preset) => (
                   <button
                     key={preset.id}
                     type="button"
-                    className="inspection-button hidden xl:inline-flex"
-                    disabled={running}
-                    onClick={() => void ask(preset.question)}
+                    className="cw-entry-example-btn"
+                    title={preset.hint}
+                    onClick={() => void startAudit(preset.question)}
                   >
                     {preset.label}
+                    <ArrowRight size={12} />
                   </button>
-                ))
-              : null}
-            <button
-              type="submit"
-              className="inspection-button primary"
-              disabled={running || !input.trim()}
-            >
-              {running ? (
-                <Loader2 size={13} className="inspection-spin" />
-              ) : (
-                <Send size={13} />
-              )}
-              {running ? "执行中" : "发送"}
-            </button>
-          </form>
-        </div>
-
-        {/* 右：工具白名单 + 口径 */}
-        <div className="grid content-start gap-2">
-          <div className="rounded-lg bg-background/80 p-2.5 ring-1 ring-foreground/10">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-[11.5px] font-semibold text-foreground">
-                工具白名单
-              </span>
-              <span className="text-[10px] text-muted-foreground">
-                点工具名可单独调用
-              </span>
+                ))}
+              </div>
+              <div className="audit-entry-actions">
+                <div className="audit-card__head">
+                  <Chip>
+                    <Database size={11} /> {baseCtx.scopeLabel}
+                  </Chip>
+                  <Chip>周期 {week}</Chip>
+                  <Chip tone="audit-chip--accent">
+                    <Wrench size={11} /> {AUDIT_TOOL_LIST.length} 个白名单工具
+                  </Chip>
+                </div>
+                <button
+                  type="button"
+                  className="cw-primary"
+                  disabled={!entryText.trim() || leaving}
+                  onClick={() => void startAudit(entryText)}
+                >
+                  <Sparkles size={15} /> 开始审计 <ArrowRight size={15} />
+                </button>
+              </div>
             </div>
-            <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
-              只有登记过的工具可以被调用，没有「执行任意 SQL」这类入口。
-            </p>
-            <div className="mt-2 grid gap-1.5">
-              {AUDIT_TOOL_LIST.map((tool) => {
-                const count = callCounts.get(tool.id) ?? 0;
-                const headline = latestHeadline.get(tool.id);
+          </div>
+        </div>
+      </div>
+    );
+
+  return (
+    <div className="cw-root" data-i18n-skip="true">
+      <div className={`studio ${leaving ? "cw-swap-out" : "cw-swap-in"}`}>
+        <header className="studio__header">
+          <div className="studio__header-left">
+            <div className="studio__identity">
+              <span className="studio__identity-icon">
+                <ShieldCheck size={16} />
+              </span>
+              <div className="studio__identity-info">
+                <strong className="studio__brand-title">数据审计</strong>
+                <span className="studio__topic-pill" title={baseCtx.scopeLabel}>
+                  {baseCtx.scopeLabel} · {week}
+                </span>
+              </div>
+            </div>
+          </div>
+          <ol className="studio__steps" aria-label="审计进度">
+            {AUDIT_STEPS.map((label, index) => (
+              <li
+                key={label}
+                className={`studio__step-item ${index === stepIndex ? "active" : ""} ${
+                  index < stepIndex ? "complete" : ""
+                }`}
+              >
+                <span className="studio__step-badge">{index + 1}</span>
+                <span className="studio__step-label">{label}</span>
+                {index < AUDIT_STEPS.length - 1 ? (
+                  <span className="studio__step-divider" aria-hidden="true" />
+                ) : null}
+              </li>
+            ))}
+          </ol>
+          <div className="studio__header-right">
+            <span className={`studio__saved ${running ? "is-busy" : ""}`}>
+              {running ? <Loader2 size={13} className="cw-spin" /> : <ShieldCheck size={13} />}
+              {running ? "执行中" : "结论已留痕"}
+            </span>
+            <button type="button" className="cw-ghost" onClick={restart}>
+              重新开始
+            </button>
+          </div>
+        </header>
+
+        <div className="studio__body">
+          <div className="studio__conversation">
+            <div className="studio__coach-bar">
+              <div className="studio__coach-profile">
+                <span className="studio__coach-avatar">
+                  <Bot size={14} />
+                </span>
+                <div className="studio__coach-meta">
+                  <span className="studio__coach-name">审计 Agent</span>
+                  <span className="studio__coach-status">
+                    <span className="studio__pulse-dot" /> 只读业务数据 · 不改任务
+                  </span>
+                </div>
+              </div>
+              <span className="studio__round-pill">{AUDIT_STEPS[stepIndex]}</span>
+            </div>
+
+            <div className="audit-thread" ref={listRef}>
+              {visibleItems.map((item) => {
+                if (item.kind === "user")
+                  return (
+                    <div key={item.id} className="audit-user-bubble">
+                      <div className="studio__user-bubble-wrap" style={{ width: "100%" }}>
+                        <div className="studio__user-avatar">
+                          <User size={13} />
+                        </div>
+                        <div className="studio__user-message">{item.text}</div>
+                      </div>
+                    </div>
+                  );
+                if (item.kind === "agent")
+                  return (
+                    <div key={item.id} className="studio__coach-bubble-wrap">
+                      <div className="studio__bubble-avatar">
+                        <Sparkles size={13} />
+                      </div>
+                      <div className="studio__bubble-content">
+                        <div className="studio__speaker">
+                          <span>审计 Agent</span>
+                          {item.event ? <EventTag name={item.event} /> : null}
+                        </div>
+                        <p className="studio__message">{item.text}</p>
+                      </div>
+                    </div>
+                  );
+                if (item.kind === "clarify") {
+                  const multi = item.clarification.field === "category";
+                  const active = liveClarify?.id === item.id;
+                  return (
+                    <div key={item.id} className="studio__coach-bubble-wrap">
+                      <div className="studio__bubble-avatar">
+                        <KeyRound size={13} />
+                      </div>
+                      <div className="studio__bubble-content">
+                        <div className="studio__speaker">
+                          <span>审计 Agent</span>
+                          <EventTag name="clarification_required" />
+                        </div>
+                        <div className="audit-card audit-card--clarify">
+                          <div className="audit-headline">{item.clarification.question}</div>
+                          {item.answered ? (
+                            <div className="audit-options">
+                              <span className="audit-option selected">
+                                <Check size={11} /> {item.answered}
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="audit-options">
+                              {item.clarification.options.map((option) => {
+                                const selected = item.picks.includes(option.value);
+                                return (
+                                  <button
+                                    key={option.value}
+                                    type="button"
+                                    title={option.hint}
+                                    disabled={!active}
+                                    className={`audit-option ${selected ? "selected" : ""}`}
+                                    onClick={() =>
+                                      multi
+                                        ? togglePick(item.id, option.value)
+                                        : void answerClarify(item, option.value, option.label)
+                                    }
+                                  >
+                                    {selected ? <Check size={11} /> : null}
+                                    {option.label}
+                                  </button>
+                                );
+                              })}
+                              {multi ? (
+                                <button
+                                  type="button"
+                                  className="cw-primary"
+                                  style={{ minHeight: 30, padding: "4px 14px", fontSize: 12 }}
+                                  disabled={!active || !item.picks.length}
+                                  onClick={() =>
+                                    void answerClarify(
+                                      item,
+                                      item.picks.join(","),
+                                      item.picks.join("、"),
+                                    )
+                                  }
+                                >
+                                  下一步
+                                </button>
+                              ) : null}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+                if (item.kind === "tool")
+                  return (
+                    <div key={item.id} className="studio__coach-bubble-wrap">
+                      <div className="studio__bubble-avatar">
+                        <Wrench size={13} />
+                      </div>
+                      <div className="studio__bubble-content">
+                        <ToolCallCard item={item} />
+                      </div>
+                    </div>
+                  );
                 return (
-                  <button
-                    key={tool.id}
-                    type="button"
-                    disabled={running}
-                    onClick={() => void runTool(tool.id)}
-                    title={`${tool.desc}｜权限码 ${tool.permission}`}
-                    className="grid gap-0.5 rounded-md bg-muted/40 px-2 py-1.5 text-left transition hover:bg-primary/10 disabled:opacity-60"
-                  >
-                    <span className="flex flex-wrap items-center gap-1.5">
-                      <code className="font-mono text-[10.5px] font-semibold text-foreground">
-                        {tool.name}
-                      </code>
-                      <span
-                        className={`rounded px-1 text-[9px] font-semibold ${
-                          tool.owner === "adm"
-                            ? "bg-primary/12 text-primary"
-                            : "bg-secondary text-secondary-foreground"
-                        }`}
-                      >
-                        {tool.owner === "adm" ? "ADM" : "SUP"}
-                      </span>
-                      {count ? (
-                        <span className="rounded-full bg-primary/12 px-1.5 text-[9.5px] font-semibold text-primary">
-                          ×{count}
-                        </span>
-                      ) : (
-                        <span className="text-[9.5px] text-muted-foreground">
-                          未调用
-                        </span>
-                      )}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground">
-                      {tool.title}
-                      {headline ? ` · ${headline}` : ""}
-                    </span>
-                  </button>
+                  <div key={item.id} className="studio__coach-bubble-wrap">
+                    <div className="studio__bubble-avatar">
+                      <FileText size={13} />
+                    </div>
+                    <div className="studio__bubble-content">
+                      <ReportCard
+                        report={item.report}
+                        busy={running}
+                        onFocusTask={onFocusTask}
+                        onExport={exportReport}
+                        onRunTool={(id) => void runTool(id, undefined, item.ctx)}
+                      />
+                    </div>
+                  </div>
                 );
               })}
             </div>
-          </div>
 
-          <div className="rounded-lg bg-background/80 p-2.5 ring-1 ring-foreground/10">
-            <span className="text-[11.5px] font-semibold text-foreground">
-              本次查询口径
-            </span>
-            <div className="mt-2 grid gap-1 text-[10.5px] leading-relaxed text-muted-foreground">
-              <span className="flex justify-between gap-2">
-                <span>数据出口</span>
-                <span className="text-foreground">ADM（唯一出口）</span>
-              </span>
-              <span className="flex justify-between gap-2">
-                <span>可见范围</span>
-                <span className="text-foreground">{baseCtx.scopeLabel}</span>
-              </span>
-              <span className="flex justify-between gap-2">
-                <span>规则集</span>
-                <span className="text-foreground">
-                  v{state.policy.version}（A–G）
-                </span>
-              </span>
-              <span className="flex justify-between gap-2">
-                <span>周容量基线</span>
-                <span className="text-foreground">
-                  {state.policy.weeklyCapacityMinutes} 分钟
-                </span>
-              </span>
-              <span className="flex justify-between gap-2">
-                <span>单日上限</span>
-                <span className="text-foreground">
-                  {state.policy.dailyLimitMinutes} 分钟
-                </span>
-              </span>
-              <span className="flex justify-between gap-2">
-                <span>数据版本</span>
-                <span className="text-foreground">v{state.revision}</span>
-              </span>
-              <span className="flex justify-between gap-2">
-                <span>最近审计</span>
-                <span className="text-foreground">
-                  {state.lastRunAt ? jakartaStamp(state.lastRunAt) : "尚未运行"}
-                </span>
-              </span>
-            </div>
-            <div className="mt-2 flex items-start gap-1.5 rounded-md bg-amber-50/70 px-2 py-1.5 text-[10px] leading-relaxed text-amber-800 ring-1 ring-amber-200">
-              <AlertTriangle size={11} className="mt-0.5 shrink-0" />
-              <span>
-                只读取业务数据并按规则找问题，不修改培训任务、人员、组织与成绩；飞书由 ADM 在发送前再校验接收人权限。
-              </span>
-            </div>
-          </div>
-
-          <div className="rounded-lg bg-background/80 p-2.5 ring-1 ring-foreground/10">
-            <span className="text-[11.5px] font-semibold text-foreground">
-              可以这样问
-            </span>
-            <div className="mt-2 grid gap-1">
-              {[
-                ...AUDIT_PRESETS.map((preset) => preset.question),
-                "把结论保存成审计记录",
-                "每周一早上九点自动跑这个审计",
-              ].map((question) => (
-                <button
-                  key={question}
-                  type="button"
+            <div className="audit-composer">
+              <div className="audit-composer__row">
+                <input
+                  className="audit-input"
+                  value={input}
                   disabled={running}
-                  className="inspection-link text-left disabled:opacity-60"
-                  onClick={() => void ask(question)}
+                  onChange={(event) => setInput(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") submit(input);
+                  }}
+                  placeholder={
+                    liveClarify
+                      ? "可以直接打字回答这一步，例如「上周」「南区」「全部品类」"
+                      : "继续追问，例如：哪个区域工时压力最大？"
+                  }
+                />
+                <button
+                  type="button"
+                  className="cw-primary"
+                  disabled={running || !input.trim()}
+                  onClick={() => submit(input)}
                 >
-                  <PlayCircle size={11} /> {question}
+                  {running ? <Loader2 size={14} className="cw-spin" /> : <Send size={14} />}
+                  {running ? "执行中" : "发送"}
                 </button>
-              ))}
+              </div>
             </div>
           </div>
+
+          <aside className="studio__draft">
+            <header className="studio__draft-header">
+              <div className="studio__draft-title">
+                <span className="studio__draft-icon">
+                  <Database size={15} />
+                </span>
+                <h2>审计口径与工具</h2>
+              </div>
+              <span className="studio__canvas-badge">只读</span>
+            </header>
+            <div className="studio__document">
+              <div className="audit-rail-block">
+                <span className="audit-section-title">本次查询口径</span>
+                <div className="audit-rail-row">
+                  <span>数据出口</span>
+                  <strong>ADM（唯一出口）</strong>
+                </div>
+                <div className="audit-rail-row">
+                  <span>可见范围</span>
+                  <strong>{baseCtx.scopeLabel}</strong>
+                </div>
+                <div className="audit-rail-row">
+                  <span>规则集</span>
+                  <strong>v{state.policy.version}（A–G）</strong>
+                </div>
+                <div className="audit-rail-row">
+                  <span>周容量基线</span>
+                  <strong>{state.policy.weeklyCapacityMinutes} 分钟</strong>
+                </div>
+                <div className="audit-rail-row">
+                  <span>单日上限</span>
+                  <strong>{state.policy.dailyLimitMinutes} 分钟</strong>
+                </div>
+                <div className="audit-rail-row">
+                  <span>数据版本</span>
+                  <strong>v{state.revision}</strong>
+                </div>
+                <div className="audit-rail-row">
+                  <span>最近审计</span>
+                  <strong>{state.lastRunAt ? jakartaStamp(state.lastRunAt) : "尚未运行"}</strong>
+                </div>
+                <div className="audit-error audit-error--permission" style={{ marginTop: 4 }}>
+                  <AlertTriangle size={11} />
+                  <span>
+                    只读业务数据并按规则找问题，不修改培训任务、人员、组织与成绩；飞书由 ADM 在发送前再校验接收人权限。
+                  </span>
+                </div>
+              </div>
+
+              <div className="audit-rail-block" style={{ marginTop: 12 }}>
+                <span className="audit-section-title">工具白名单</span>
+                <span className="audit-tool-row__desc">
+                  只有登记过的工具可以被调用，没有「执行任意 SQL」这类入口；点工具名可单独调用。
+                </span>
+                {AUDIT_TOOL_LIST.map((tool) => {
+                  const count = callCounts.get(tool.id) ?? 0;
+                  const headline = latestHeadline.get(tool.id);
+                  return (
+                    <button
+                      key={tool.id}
+                      type="button"
+                      className="audit-tool-row"
+                      disabled={running}
+                      title={`${tool.desc}｜权限码 ${tool.permission}`}
+                      onClick={() => void runTool(tool.id)}
+                    >
+                      <span className="audit-tool-row__head">
+                        <span className="audit-tool-name">{tool.name}</span>
+                        <Chip tone={tool.owner === "adm" ? "audit-chip--accent" : undefined}>
+                          {tool.owner === "adm" ? "ADM" : "SUP"}
+                        </Chip>
+                        {count ? (
+                          <Chip tone="audit-chip--accent">×{count}</Chip>
+                        ) : (
+                          <span className="audit-meta">未调用</span>
+                        )}
+                      </span>
+                      <span className="audit-tool-row__desc">
+                        {tool.title}
+                        {headline ? ` · ${headline}` : ""}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="audit-rail-block" style={{ marginTop: 12 }}>
+                <span className="audit-section-title">可以这样问</span>
+                {[
+                  ...AUDIT_PRESETS.map((preset) => preset.question),
+                  "把结论保存成审计记录",
+                  "每周一早上九点自动跑这个审计",
+                ].map((question) => (
+                  <button
+                    key={question}
+                    type="button"
+                    className="studio__text-button"
+                    style={{ paddingLeft: 0, textAlign: "left" }}
+                    disabled={running}
+                    onClick={() => void ask(question)}
+                  >
+                    <PlayCircle size={12} /> {question}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="studio__composer">
+              <div className="studio__composer-actions">
+                <span className="studio__hint">
+                  <ShieldCheck size={13} /> 报告只复述工具结果，处置需要人工确认后才写入新版本。
+                </span>
+              </div>
+            </div>
+          </aside>
         </div>
       </div>
     </div>
