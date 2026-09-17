@@ -25,7 +25,8 @@ const isSupportedLang = (value: unknown): value is LocaleType =>
 
 const resolveCachedLang = (): LocaleType => {
   const cached = wsCache.get(CACHE_KEY.LANG)
-  return isSupportedLang(cached) ? cached : 'id'
+  // Beauty-AI 原型的默认界面语言是中文，这里保持一致
+  return isSupportedLang(cached) ? cached : 'zh-CN'
 }
 
 export const useLocaleStore = defineStore('locales', {

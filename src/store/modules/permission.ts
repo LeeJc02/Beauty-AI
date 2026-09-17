@@ -7,7 +7,7 @@ import { CACHE_KEY, useCache } from '@/hooks/web/useCache'
 
 const { wsCache } = useCache()
 
-const DEFAULT_ENTRY_PATHS = ['/national-data', '/operation-overview', '/regional-data']
+const DEFAULT_ENTRY_PATHS = ['/national-data', '/runtime-overview', '/regional-data']
 
 /** redirect 允许是字符串/对象/函数；这里只需要字符串路径，其它形态回退到 route.path。 */
 const toEntryPath = (redirect: unknown, fallback?: string): string | undefined =>

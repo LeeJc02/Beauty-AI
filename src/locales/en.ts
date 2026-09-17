@@ -1,3 +1,4 @@
+import { beautyMenuEn } from './modules/beautyMenu'
 import { studioEn } from './modules/coursewareStudio'
 import enTaskCenter from './modules/en/taskCenter'
 import enCategorySettings from './modules/en/categorySettings'
@@ -11,6 +12,7 @@ import enDailyBaReport from './modules/en/dailyBaReport'
 import enBaEfficiency from './modules/en/baEfficiency'
 import enDailyBaReportSettings from './modules/en/dailyBaReportSettings'
 import enWeeklyBaReport from './modules/en/weeklyBaReport'
+import { beautyMenuEn } from './modules/beautyMenu'
 export default {
   menu: {
     system: enSystemManagement.menu,
@@ -1509,5 +1511,6 @@ export default {
     title: 'Crop example image',
     hint: 'Drag or resize the crop box to choose the area shown in the app check-in example block; the ratio matches the example block',
     confirm: 'Apply crop'
-  }
+  },
+  beautyMenu: beautyMenuEn
 }

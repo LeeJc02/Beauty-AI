@@ -16,6 +16,9 @@ import { setupGlobCom } from '@/components'
 // 引入 element-plus
 import { setupElementPlus } from '@/plugins/elementPlus'
 
+// 本地 mock（浏览器内假后端，安装到 axios 实例的 adapter 上）
+import { setupMock } from '@/mock'
+
 // 引入全局样式
 import '@/styles/index.scss'
 
@@ -42,6 +45,9 @@ import print from 'vue3-print-nb' // 打印插件
 
 // 创建实例
 const setupAll = async () => {
+  // 必须在任何请求发出前装好本地 mock
+  setupMock()
+
   const app = createApp(App)
 
   await setupI18n(app)

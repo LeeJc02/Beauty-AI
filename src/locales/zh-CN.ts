@@ -1,3 +1,4 @@
+import { beautyMenuZh } from './modules/beautyMenu'
 import { studioZh } from './modules/coursewareStudio'
 import zhCNTaskCenter from './modules/zh-CN/taskCenter'
 import zhCNCategorySettings from './modules/zh-CN/categorySettings'
@@ -11,6 +12,7 @@ import zhCNDailyBaReport from './modules/zh-CN/dailyBaReport'
 import zhCNBaEfficiency from './modules/zh-CN/baEfficiency'
 import zhCNDailyBaReportSettings from './modules/zh-CN/dailyBaReportSettings'
 import zhCNWeeklyBaReport from './modules/zh-CN/weeklyBaReport'
+import { beautyMenuZh } from './modules/beautyMenu'
 export default {
   menu: {
     system: zhCNSystemManagement.menu,
@@ -1465,5 +1467,6 @@ export default {
     hint: '拖动或缩放裁剪框，选择要展示在 App 拍摄页示例区的区域；裁剪比例与示例区一致',
     confirm: '确认裁剪'
   },
-  'OAuth 2.0': 'OAuth 2.0' // 避免菜单名是 OAuth 2.0 时，一直 warn 报错
+  'OAuth 2.0': 'OAuth 2.0', // 避免菜单名是 OAuth 2.0 时，一直 warn 报错
+  beautyMenu: beautyMenuZh
 }

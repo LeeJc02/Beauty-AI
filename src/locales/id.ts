@@ -1,3 +1,4 @@
+import { beautyMenuId } from './modules/beautyMenu'
 import { studioId } from './modules/coursewareStudio'
 import idTaskCenter from './modules/id/taskCenter'
 import idCategorySettings from './modules/id/categorySettings'
@@ -12,6 +13,7 @@ import idBaEfficiency from './modules/id/baEfficiency'
 import idDailyBaReportSettings from './modules/id/dailyBaReportSettings'
 import idWeeklyBaReport from './modules/id/weeklyBaReport'
 import en from './en'
+import { beautyMenuId } from './modules/beautyMenu'
 
 export default {
   ...en,
@@ -1153,5 +1155,6 @@ export default {
     ...en.router,
     home: 'Beranda',
     login: 'Masuk'
-  }
+  },
+  beautyMenu: beautyMenuId
 }

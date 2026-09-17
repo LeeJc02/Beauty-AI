@@ -7,6 +7,7 @@ import { Screenfull } from '@/layout/components/Screenfull'
 import { Breadcrumb } from '@/layout/components/Breadcrumb'
 import { SizeDropdown } from '@/layout/components/SizeDropdown'
 import { LocaleDropdown } from '@/layout/components/LocaleDropdown'
+import { RoleSwitcher } from '@/layout/components/RoleSwitcher'
 import RouterSearch from '@/components/RouterSearch/index.vue'
 import TenantVisit from '@/layout/components/TenantVisit/index.vue'
 import { useAppStore } from '@/store/modules/app'
@@ -77,6 +78,7 @@ export default defineComponent({
           {size.value ? (
             <SizeDropdown class="custom-hover" color="var(--top-header-text-color)"></SizeDropdown>
           ) : undefined}
+          <RoleSwitcher class="custom-hover" color="var(--top-header-text-color)"></RoleSwitcher>
           {locale.value ? (
             <LocaleDropdown
               class="custom-hover"
