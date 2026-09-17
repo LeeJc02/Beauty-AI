@@ -1,0 +1,737 @@
+/* 数据审计工作台 · 局部样式（列表密度、状态条与移动端适配） */
+/* 原型：src/pages/TrainingInspection.css（逐字搬移，类名与选择器结构保持一致） */
+
+.inspection-workspace {
+  --inspect-border: #e6e3e6;
+  --inspect-muted: #74777d;
+  color: #26262c;
+  font-size: 13px;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 24px;
+}
+
+.inspection-workspace > .hidden + .hidden,
+.inspection-workspace > div:not(.inspection-toast) {
+  min-height: 0;
+  flex: 1;
+}
+
+.inspection-workspace > div:not(.inspection-toast):not(.hidden) {
+  display: flex;
+  flex-direction: column;
+}
+
+.inspection-workspace .audit-console-root {
+  min-height: 0;
+  height: 100%;
+}
+
+.inspection-workspace *,
+.inspection-modal * {
+  box-sizing: border-box;
+  letter-spacing: 0;
+}
+
+.inspection-heading {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  padding: 2px 0 14px;
+}
+
+.inspection-heading h1 {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 6px 0 0;
+}
+
+.inspection-heading p {
+  color: var(--inspect-muted);
+  margin: 4px 0 0;
+  font-size: 12px;
+  max-width: 640px;
+}
+
+.inspection-eyebrow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  color: #6b6f76;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.inspection-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.inspection-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 7px 11px;
+  border: 1px solid #dcd8dc;
+  border-radius: 8px;
+  background: #fff;
+  color: #3f4148;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.inspection-button:hover {
+  background: #f4f1f3;
+}
+
+.inspection-button.primary {
+  background: #ad5775;
+  border-color: #ad5775;
+  color: #fff;
+}
+
+.inspection-button.primary:hover {
+  background: #97476a;
+}
+
+.inspection-button:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.inspection-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  border: 1px solid #dcd8dc;
+  border-radius: 8px;
+  background: #fff;
+  color: #4a4c53;
+  cursor: pointer;
+}
+
+.inspection-icon:hover {
+  background: #f4f1f3;
+}
+
+.inspection-live {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #3f9f7a;
+  box-shadow: 0 0 0 3px rgb(63 159 122 / 15%);
+}
+
+.inspection-spin {
+  animation: inspection-spin 1s linear infinite;
+}
+
+@keyframes inspection-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.inspection-actions-label {
+  display: inline-flex;
+  align-items: center;
+  color: #8b8e95;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.inspection-runbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  border-top: 1px solid var(--inspect-border);
+  border-bottom: 1px solid var(--inspect-border);
+  padding: 8px 0;
+  color: #71747b;
+  font-size: 11px;
+}
+
+.inspection-runbar > span {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.inspection-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  background: none;
+  color: #8a5f79;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+
+.inspection-link:hover {
+  text-decoration: underline;
+}
+
+.inspection-tabs {
+  display: flex;
+  gap: 4px;
+  margin: 14px 0;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.inspection-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 7px 13px;
+  border: 1px solid var(--inspect-border);
+  border-radius: 8px;
+  background: #fff;
+  color: #63666d;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.inspection-tab:hover {
+  background: #f6f3f5;
+}
+
+.inspection-tab.active {
+  background: #2c2b31;
+  border-color: #2c2b31;
+  color: #fff;
+}
+
+.inspection-tab-group {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+}
+
+.inspection-tab-group .inspection-tab {
+  padding-right: 26px;
+}
+
+.inspection-tab-close {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #9a9ba2;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+.inspection-tab-close:hover {
+  background: rgb(44 43 49 / 10%);
+  color: #2c2b31;
+}
+
+.inspection-tab-group.active .inspection-tab-close {
+  color: rgb(255 255 255 / 65%);
+}
+
+.inspection-tab-group.active .inspection-tab-close:hover {
+  background: rgb(255 255 255 / 20%);
+  color: #fff;
+}
+
+.inspection-tab-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #d9730d;
+}
+
+.inspection-tab.active .inspection-tab-dot {
+  background: #ffb489;
+}
+
+.inspection-tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 18%);
+  color: inherit;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.inspection-tab:not(.active) .inspection-tab-group {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+}
+
+.inspection-tab-group .inspection-tab {
+  padding-right: 26px;
+}
+
+.inspection-tab-close {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #9a9ba2;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+.inspection-tab-close:hover {
+  background: rgb(44 43 49 / 10%);
+  color: #2c2b31;
+}
+
+.inspection-tab-group.active .inspection-tab-close {
+  color: rgb(255 255 255 / 65%);
+}
+
+.inspection-tab-group.active .inspection-tab-close:hover {
+  background: rgb(255 255 255 / 20%);
+  color: #fff;
+}
+
+.inspection-tab-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #d9730d;
+}
+
+.inspection-tab.active .inspection-tab-dot {
+  background: #ffb489;
+}
+
+.inspection-tab-count {
+  background: #f1ebef;
+  color: #8a5f79;
+}
+
+.inspection-toast {
+  margin-bottom: 12px;
+  border-radius: 10px;
+  background: #2c2b31;
+  color: #fff;
+  padding: 9px 12px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  box-shadow: 0 8px 24px rgb(44 43 49 / 18%);
+}
+
+.inspection-body {
+  display: grid;
+  gap: 16px;
+}
+
+/* 14 天时间轴列宽（Tailwind 默认不含 grid-cols-14） */
+.inspection-workspace .grid-cols-14 {
+  grid-template-columns: repeat(14, minmax(0, 1fr));
+}
+
+.inspection-modal {
+  /* 原型（base-ui Dialog）这里写的是 `width: min(880px, 94vw)`；
+     换成 el-dialog 后宽度由 `width` 属性（--el-dialog-width）控制，这里只保留上限，
+     否则会把「异常任务」这类窄弹窗也撑到 880px。 */
+  max-width: min(880px, 94vw) !important;
+  max-height: 90vh;
+  font-size: 13px;
+  color: #26262c;
+}
+
+.inspection-modal [data-slot='dialog-title'] {
+  font-size: 15px;
+}
+
+@media (max-width: 768px) {
+  .inspection-heading {
+    align-items: flex-start;
+  }
+  .inspection-heading h1 {
+    font-size: 19px;
+  }
+  .inspection-button,
+  .inspection-icon {
+    min-height: 32px;
+  }
+  .inspection-workspace table {
+    min-width: 680px;
+  }
+  .inspection-workspace .grid-cols-14 {
+    gap: 2px;
+  }
+  .inspection-workspace .grid-cols-14 > div > div:first-child {
+    height: 72px;
+  }
+}
+
+/* ================================================================== *
+ * 一、设计令牌桥接
+ *
+ * 原型是 React + Tailwind v4：`src/index.css` 的 `@theme` 把一套 shadcn
+ * 语义色注册成 `--color-*`，页面因此可以直接写 `bg-card` /
+ * `text-muted-foreground` / `ring-foreground/10` 这类 token 类。
+ * 本仓库的 UnoCSS（presetUno）只有 Tailwind 默认调色板，没有 card /
+ * muted / primary / secondary / border / ring 这些主题色，写同名类不会生成
+ * 任何样式。所以这里把原型 `:root` 的取值原样搬到页面作用域，并补齐页面用到的
+ * 同名工具类，模板里的类名与原型保持一致，改起来可以直接对照。
+ *
+ * 作用域限定在 `.inspection-workspace`（页面）与 `.inspection-modal`
+ * （弹窗用 el-dialog 挂在 body 上，所以单独补一份），不污染其它页面。
+ * 透明度一律用 color-mix 还原 Tailwind 的 `/<alpha>`；ring 色沿用 UnoCSS
+ * 的 `--un-ring-color`，与 `ring-1` / `ring-inset` 配合生效。
+ * ================================================================== */
+.inspection-workspace,
+.inspection-modal {
+  --background: oklch(0.982 0.006 74);
+  --foreground: oklch(0.19 0.008 285);
+  --card: oklch(1 0 0);
+  --popover: oklch(1 0 0);
+  --primary: oklch(0.58 0.145 18);
+  --primary-foreground: oklch(0.99 0.006 30);
+  --secondary: oklch(0.955 0.018 18);
+  --secondary-foreground: oklch(0.33 0.038 18);
+  --muted: oklch(0.96 0.007 82);
+  --muted-foreground: oklch(0.52 0.012 285);
+  --accent: oklch(0.955 0.018 18);
+  --accent-foreground: oklch(0.35 0.05 18);
+  --destructive: oklch(0.55 0.15 20);
+  --border: oklch(0.9 0.008 74);
+  --input: oklch(0.9 0.008 74);
+  --ring: oklch(0.58 0.145 18);
+
+  /* 背景 */
+  .bg-background {
+    background-color: var(--background);
+  }
+
+  .bg-card {
+    background-color: var(--card);
+  }
+
+  .bg-popover {
+    background-color: var(--popover);
+  }
+
+  .bg-muted {
+    background-color: var(--muted);
+  }
+
+  .bg-muted\/30 {
+    background-color: color-mix(in srgb, var(--muted) 30%, transparent);
+  }
+
+  .bg-muted\/40 {
+    background-color: color-mix(in srgb, var(--muted) 40%, transparent);
+  }
+
+  .bg-muted\/50 {
+    background-color: color-mix(in srgb, var(--muted) 50%, transparent);
+  }
+
+  .bg-muted\/60 {
+    background-color: color-mix(in srgb, var(--muted) 60%, transparent);
+  }
+
+  .bg-secondary {
+    background-color: var(--secondary);
+  }
+
+  .bg-secondary\/60 {
+    background-color: color-mix(in srgb, var(--secondary) 60%, transparent);
+  }
+
+  .bg-secondary\/70 {
+    background-color: color-mix(in srgb, var(--secondary) 70%, transparent);
+  }
+
+  .bg-primary {
+    background-color: var(--primary);
+  }
+
+  .bg-primary\/10 {
+    background-color: color-mix(in srgb, var(--primary) 10%, transparent);
+  }
+
+  .bg-primary\/12 {
+    background-color: color-mix(in srgb, var(--primary) 12%, transparent);
+  }
+
+  .bg-primary\/20 {
+    background-color: color-mix(in srgb, var(--primary) 20%, transparent);
+  }
+
+  .bg-primary\/60 {
+    background-color: color-mix(in srgb, var(--primary) 60%, transparent);
+  }
+
+  .bg-primary\/70 {
+    background-color: color-mix(in srgb, var(--primary) 70%, transparent);
+  }
+
+  .bg-foreground\/95 {
+    background-color: color-mix(in srgb, var(--foreground) 95%, transparent);
+  }
+
+  .hover\:bg-muted:hover {
+    background-color: var(--muted);
+  }
+
+  .hover\:bg-muted\/60:hover {
+    background-color: color-mix(in srgb, var(--muted) 60%, transparent);
+  }
+
+  .hover\:bg-secondary:hover {
+    background-color: var(--secondary);
+  }
+
+  .hover\:bg-secondary\/70:hover {
+    background-color: color-mix(in srgb, var(--secondary) 70%, transparent);
+  }
+
+  .hover\:bg-primary\/10:hover {
+    background-color: color-mix(in srgb, var(--primary) 10%, transparent);
+  }
+
+  .hover\:bg-primary\/20:hover {
+    background-color: color-mix(in srgb, var(--primary) 20%, transparent);
+  }
+
+  /* 文字 */
+  .text-foreground {
+    color: var(--foreground);
+  }
+
+  .text-background {
+    color: var(--background);
+  }
+
+  .text-muted-foreground {
+    color: var(--muted-foreground);
+  }
+
+  .text-muted-foreground\/70 {
+    color: color-mix(in srgb, var(--muted-foreground) 70%, transparent);
+  }
+
+  .text-primary {
+    color: var(--primary);
+  }
+
+  .text-primary-foreground {
+    color: var(--primary-foreground);
+  }
+
+  .text-secondary-foreground {
+    color: var(--secondary-foreground);
+  }
+
+  .hover\:text-foreground:hover {
+    color: var(--foreground);
+  }
+
+  /* 边框 */
+  .border-border {
+    border-color: var(--border);
+  }
+
+  .border-border\/60 {
+    border-color: color-mix(in srgb, var(--border) 60%, transparent);
+  }
+
+  .border-border\/70 {
+    border-color: color-mix(in srgb, var(--border) 70%, transparent);
+  }
+
+  .border-input {
+    border-color: var(--input);
+  }
+
+  .focus-visible\:border-ring:focus-visible {
+    border-color: var(--ring);
+  }
+
+  /* ring（描边）颜色，配合 UnoCSS 的 ring-1 / ring-inset 使用 */
+  .ring-border {
+    --un-ring-color: var(--border);
+  }
+
+  .ring-foreground\/10 {
+    --un-ring-color: color-mix(in srgb, var(--foreground) 10%, transparent);
+  }
+
+  .ring-primary\/15 {
+    --un-ring-color: color-mix(in srgb, var(--primary) 15%, transparent);
+  }
+
+  .ring-primary\/20 {
+    --un-ring-color: color-mix(in srgb, var(--primary) 20%, transparent);
+  }
+
+  .ring-primary\/25 {
+    --un-ring-color: color-mix(in srgb, var(--primary) 25%, transparent);
+  }
+
+  .ring-primary\/30 {
+    --un-ring-color: color-mix(in srgb, var(--primary) 30%, transparent);
+  }
+
+  .ring-primary\/40 {
+    --un-ring-color: color-mix(in srgb, var(--primary) 40%, transparent);
+  }
+
+  .hover\:ring-primary\/40:hover {
+    --un-ring-color: color-mix(in srgb, var(--primary) 40%, transparent);
+  }
+
+  .focus-visible\:ring-ring\/40:focus-visible {
+    --un-ring-color: color-mix(in srgb, var(--ring) 40%, transparent);
+  }
+
+  /* 渐变（from-* 必须先于 to-* 声明，后者覆盖 --un-gradient-to） */
+  .from-secondary\/70 {
+    --un-gradient-from-position: 0%;
+    --un-gradient-from: color-mix(in srgb, var(--secondary) 70%, transparent)
+      var(--un-gradient-from-position);
+    --un-gradient-to-position: 100%;
+    --un-gradient-to: rgb(0 0 0 / 0) var(--un-gradient-to-position);
+    --un-gradient-stops: var(--un-gradient-from), var(--un-gradient-to);
+  }
+
+  .from-secondary\/80 {
+    --un-gradient-from-position: 0%;
+    --un-gradient-from: color-mix(in srgb, var(--secondary) 80%, transparent)
+      var(--un-gradient-from-position);
+    --un-gradient-to-position: 100%;
+    --un-gradient-to: rgb(0 0 0 / 0) var(--un-gradient-to-position);
+    --un-gradient-stops: var(--un-gradient-from), var(--un-gradient-to);
+  }
+
+  .to-card {
+    --un-gradient-to-position: 100%;
+    --un-gradient-to: var(--card) var(--un-gradient-to-position);
+  }
+}
+
+/* ================================================================== *
+ * 二、弹窗适配（原型的 Dialog 是 base-ui，这里换成 el-dialog）
+ * ================================================================== */
+.inspection-modal .el-dialog__header {
+  padding-bottom: 8px;
+}
+
+.inspection-modal .el-dialog__title {
+  font-size: 15px;
+  color: #26262c;
+}
+
+.inspection-modal .el-dialog__body {
+  padding-top: 8px;
+  color: #26262c;
+}
+
+/* ================================================================== *
+ * 三、InfoTip（口径说明气泡）
+ *
+ * 原型用 Tailwind 的具名 group 变体（`group/info` + `group-hover/info:block`）
+ * 控制显隐；这里改成等价的普通类，避免依赖实验性的具名 group 变体。
+ * ================================================================== */
+.inspection-infotip {
+  position: relative;
+  display: inline-flex;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
+.inspection-infotip__trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: color-mix(in srgb, var(--muted-foreground) 70%, transparent);
+  cursor: help;
+}
+
+.inspection-infotip__trigger:hover {
+  color: var(--foreground);
+}
+
+.inspection-infotip__panel {
+  position: absolute;
+  top: 150%;
+  left: 50%;
+  z-index: 30;
+  display: none;
+  width: 300px;
+  transform: translateX(-50%);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--foreground) 95%, transparent);
+  padding: 8px 10px;
+  color: var(--background);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.625;
+  text-align: left;
+  white-space: normal;
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 10%), 0 8px 10px -6px rgb(0 0 0 / 10%);
+  pointer-events: none;
+}
+
+.inspection-infotip:hover .inspection-infotip__panel,
+.inspection-infotip:focus-within .inspection-infotip__panel {
+  display: block;
+}

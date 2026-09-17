@@ -100,6 +100,16 @@ ${selector}:after {
     ]
   ],
   presets: [presetUno({ dark: 'class', attributify: false })],
+  content: {
+    pipeline: {
+      // 默认管线不扫 .ts（只扫 tsx），而 Beauty-AI 原型把一批类名集中写在 lib/*.ts 里
+      // （例如 visualTones 的 textClass / bgClass），不补这一条会大量丢样式。
+      include: [
+        /\.(vue|svelte|[jt]sx|mdx?|astro|elm|php|phtml|marko|html|md)($|\?)/,
+        /\.ts($|\?)/
+      ]
+    }
+  },
   // transformers: [transformerVariantGroup()],
   shortcuts: {
     'wh-full': 'w-full h-full'

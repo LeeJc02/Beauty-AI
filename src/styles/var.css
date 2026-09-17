@@ -109,4 +109,11 @@ body {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  /* 对齐 Tailwind preflight：
+     - 不把 border-width 归零时，CSS 初始值 medium(3px) 会让“设了 border-style 的元素”到处出现粗边框；
+     - 不把 border-style 设为 solid 时，`border border-[#xxx]`（只给宽度与颜色）会完全不可见。
+     原型页面的边框大量依赖后者。 */
+  border-width: 0;
+  border-style: solid;
+  border-color: currentcolor;
 }
