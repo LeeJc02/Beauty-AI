@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SalesBoost AI · 课件预览（本地演示）</title>
+    <style>
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body {
+        font-family: "Inter", "Helvetica Neue", "PingFang SC", Arial, sans-serif;
+        background: #f3efec;
+        color: #1c1917;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 14px 22px;
+        background: #fffdfc;
+        border-bottom: 1px solid #e7e2df;
+        flex: 0 0 auto;
+      }
+      .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; }
+      .dot { width: 26px; height: 26px; border-radius: 8px; background: linear-gradient(140deg, #f43f5e, #f5c08a); }
+      .meta { font-size: 12px; color: #827972; }
+      .stage { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; padding: 26px; overflow: hidden; }
+      .slide {
+        width: min(1120px, 100%);
+        aspect-ratio: 16 / 9;
+        background: #fffdfc;
+        border: 1px solid #e7e2df;
+        border-radius: 20px;
+        box-shadow: 0 22px 44px -26px rgba(28, 25, 23, 0.4);
+        padding: 52px 58px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        position: relative;
+        overflow: hidden;
+      }
+      .idx { position: absolute; right: 46px; top: 24px; font-size: 68px; font-weight: 800; color: #f2ebe7; }
+      .eyebrow {
+        display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600;
+        color: #a85f4b; background: #fbf3f0; border: 1px solid #f0d8d0; border-radius: 20px;
+        padding: 5px 12px; width: fit-content;
+      }
+      h1 { font-size: 34px; line-height: 1.24; letter-spacing: -0.02em; max-width: 26ch; position: relative; z-index: 1; }
+      .sub { font-size: 14px; color: #78716c; border-bottom: 2px solid #f0e6e1; padding-bottom: 14px; max-width: 56ch; position: relative; z-index: 1; }
+      ul { display: grid; gap: 10px; position: relative; z-index: 1; }
+      li {
+        display: flex; gap: 10px; align-items: flex-start; font-size: 14px; color: #44403c;
+        background: #faf8f6; border: 1px solid #f2ece8; border-radius: 10px; padding: 12px 14px; list-style: none;
+      }
+      li b { color: #a85f4b; font-weight: 700; font-variant-numeric: tabular-nums; }
+      footer {
+        flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between;
+        gap: 12px; padding: 12px 22px; background: #fffdfc; border-top: 1px solid #e7e2df;
+      }
+      .nav { display: flex; align-items: center; gap: 10px; }
+      button {
+        font: inherit; font-size: 13px; padding: 7px 14px; border-radius: 10px; cursor: pointer;
+        border: 1px solid #e5ded8; background: #fff; color: #242124;
+      }
+      button.primary { background: #a85f4b; border-color: #a85f4b; color: #fff; }
+      button:disabled { opacity: 0.45; cursor: not-allowed; }
+      .progress { font-size: 12px; color: #827972; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="brand"><span class="dot"></span><span>SalesBoost <span style="font-weight: 300; opacity: 0.65">AI</span></span></div>
+      <div class="meta" id="meta">本地演示课件 · 无后端</div>
+    </header>
+    <main class="stage">
+      <section class="slide">
+        <div class="idx" id="idx">01</div>
+        <span class="eyebrow" id="eyebrow">Y.O.U Barrier Shield · 门店话术进阶</span>
+        <h1 id="title">价格异议的真实来源</h1>
+        <p class="sub" id="sub">顾客说的“贵”，多数时候是不确定值不值</p>
+        <ul id="points"></ul>
+      </section>
+    </main>
+    <footer>
+      <span class="progress" id="progress">第 1 / 6 页</span>
+      <div class="nav">
+        <button id="prev">上一页</button>
+        <button id="next" class="primary">下一页</button>
+      </div>
+    </footer>
+    <script>
+      // 本地演示课件：数据内联，支持 ?part=N 定位到某个子课件，并响应宿主页面的语言消息。
+      const PARTS = [
+        {
+          title: '第 1 部分 · 价格异议的三步回应',
+          pages: [
+            { title: '价格异议的真实来源', sub: '顾客说的“贵”，多数时候是不确定值不值', points: ['先认可价格感受，不急着解释成分', '把“贵”翻译成“不确定”', '三句话完成情绪落地'] },
+            { title: '把价格换算成单次使用成本', sub: '用对比口径降低价格感知', points: ['按每次 0.8ml 计算单次成本', '与一杯咖啡做同量级对比', '避免直接说“其实不贵”'] },
+            { title: '小测：价格异议的三步回应', sub: '用 3 道题确认学员记住了顺序', points: ['第 1 步是认可还是解释？', '单次成本怎么算？', '收尾动作是什么？'] }
+          ]
+        },
+        {
+          title: '第 2 部分 · 柜台演练与跟进',
+          pages: [
+            { title: '三层屏障举证话术', sub: '神经酰胺 + 屏障修护 + 复购口碑', points: ['举证顺序：痛点 → 机制 → 结果', '用顾客皮肤状态收口', '给一个明确的下一步'] },
+            { title: '角色扮演：顾客要求再打折', sub: '学员扮演 BA，AI 扮演要折扣的顾客', points: ['坚持价格锚点', '用试用替代折扣', '结束时复述承诺'] },
+            { title: '课后任务：一周试用跟进', sub: '带 3 位顾客完成试用并回传反馈', points: ['记录试用顾客名单', '第 3 天回访', '汇总一条门店经验'] }
+          ]
+        }
+      ]
+
+      const params = new URLSearchParams(location.search)
+      const requestedPart = Number(params.get('part') || 0)
+      const partIndex = requestedPart >= 1 && requestedPart <= PARTS.length ? requestedPart - 1 : 0
+      const allPages = PARTS.flatMap((part, index) =>
+        part.pages.map((page) => ({ ...page, partTitle: part.title, partIndex: index + 1 }))
+      )
+      let current = Math.max(
+        0,
+        allPages.findIndex((page) => page.partIndex === partIndex + 1)
+      )
+
+      const el = (id) => document.getElementById(id)
+
+      function render() {
+        const page = allPages[current] || allPages[0]
+        el('idx').textContent = String(current + 1).padStart(2, '0')
+        el('eyebrow').textContent = page.partTitle
+        el('title').textContent = page.title
+        el('sub').textContent = page.sub
+        el('points').innerHTML = page.points
+          .map((point, index) => `<li><b>${String(index + 1).padStart(2, '0')}</b><span>${point}</span></li>`)
+          .join('')
+        el('progress').textContent = `第 ${current + 1} / ${allPages.length} 页`
+        el('prev').disabled = current === 0
+        el('next').disabled = current === allPages.length - 1
+      }
+
+      el('prev').addEventListener('click', () => {
+        if (current > 0) current -= 1
+        render()
+      })
+      el('next').addEventListener('click', () => {
+        if (current < allPages.length - 1) current += 1
+        render()
+      })
+
+      // 宿主要求切换语言时同步页头文案（宿主只发不等待，未实现也能正常预览）
+      window.addEventListener('message', (event) => {
+        const data = event.data
+        if (!data || typeof data !== 'object') return
+        if (data.type === 'salesboost:set-locale') {
+          el('meta').textContent = `本地演示课件 · 语言：${data.locale || 'cn'} · 无后端`
+        }
+      })
+
+      // 通知宿主已就绪（宿主的 iframe onload 才是主路径，这条只是尽力而为）
+      try {
+        window.parent?.postMessage({ type: 'salesboost:ready', hostApp: 'salesboost' }, '*')
+      } catch (error) {
+        /* ignore */
+      }
+
+      render()
+    </script>
+  </body>
+</html>

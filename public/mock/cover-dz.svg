@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360" role="img" aria-label="DZ SUPOR High Ticket">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2F6D8F"/>
+      <stop offset="100%" stop-color="#BFD9E6"/>
+    </linearGradient>
+  </defs>
+  <rect width="640" height="360" fill="url(#g)"/>
+  <circle cx="540" cy="70" r="120" fill="#ffffff" opacity="0.12"/>
+  <circle cx="90" cy="330" r="150" fill="#ffffff" opacity="0.08"/>
+  <text x="44" y="170" font-family="Inter, Helvetica, Arial, sans-serif" font-size="42" font-weight="800" fill="#ffffff">DZ SUPOR</text>
+  <text x="44" y="212" font-family="Inter, Helvetica, Arial, sans-serif" font-size="20" font-weight="500" fill="#ffffff" opacity="0.85">High Ticket</text>
+  <text x="44" y="300" font-family="Inter, Helvetica, Arial, sans-serif" font-size="14" fill="#ffffff" opacity="0.7">SalesBoost AI · 本地演示课件</text>
+</svg>

@@ -77,6 +77,17 @@ export const mockAdapter: AxiosAdapter = async (config) => {
   // 轻微延迟，让页面的 loading / 轮询状态能被真实观察到。
   await delay(method === 'GET' ? 120 : 180)
 
+  const debugEnabled = (() => {
+    try {
+      return localStorage.getItem('beauty-ai:mock-log') === '1'
+    } catch {
+      return false
+    }
+  })()
+  if (debugEnabled) {
+    console.debug(`[mock] ${method} ${path}`, { query: ctx.query, body: ctx.body })
+  }
+
   if (!route) {
     if (!unmatchedWarned.has(`${method} ${path}`)) {
       unmatchedWarned.add(`${method} ${path}`)

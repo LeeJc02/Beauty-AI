@@ -30,6 +30,11 @@ export interface UploaderFactoryOptions {
 export function createUploader(options: UploaderFactoryOptions): BrowserUploader {
   const { session } = options
 
+  // 本地演示模式：不真的上传，仅模拟进度（由本地 mock 的 upload-session 返回该 mode）
+  if (session.mode === 'local_demo') {
+    return new LocalDemoUploader()
+  }
+
   if (session.mode === 'presigned_put') {
     return new PresignedPutUploader(session)
   }
@@ -206,7 +211,6 @@ class TencentCosUploader implements BrowserUploader {
 }
 
 // ========== 预签名 PUT 上传器 ==========
-
 class PresignedPutUploader implements BrowserUploader {
   private abortController: AbortController | null = null
   private session: BrowserUploadSessionRespVO
@@ -249,5 +253,52 @@ class PresignedPutUploader implements BrowserUploader {
 
   cancel(): void {
     this.abortController?.abort()
+  }
+}
+
+// ========== 本地演示上传器 ==========
+
+/**
+ * 本地演示上传器：不产生任何网络请求，只按固定节奏推进进度。
+ *
+ * 用途：Beauty-AI 是纯前端演示工程，本地 mock 的 upload-session 会返回 `mode: 'local_demo'`，
+ * 让「上传素材 → 生成课件」的完整交互离线也能演示。
+ */
+class LocalDemoUploader implements BrowserUploader {
+  private cancelled = false
+  private timer: ReturnType<typeof setInterval> | null = null
+
+  async upload(
+    _file: File,
+    _objectKey: string,
+    onProgress: (progress: number) => void,
+    _options?: BrowserUploaderUploadOptions
+  ): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      let progress = 0
+      this.timer = setInterval(() => {
+        if (this.cancelled) {
+          if (this.timer) clearInterval(this.timer)
+          this.timer = null
+          reject(new Error('上传已取消'))
+          return
+        }
+        progress = Math.min(100, progress + 12 + Math.round(Math.random() * 8))
+        if (progress >= 99) {
+          onProgress(99)
+          if (this.timer) clearInterval(this.timer)
+          this.timer = null
+          resolve()
+          return
+        }
+        onProgress(progress)
+      }, 90)
+    })
+  }
+
+  cancel(): void {
+    this.cancelled = true
+    if (this.timer) clearInterval(this.timer)
+    this.timer = null
   }
 }
