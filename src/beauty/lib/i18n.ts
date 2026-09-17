@@ -1834,8 +1834,9 @@ const translationToSource = Object.values(dictionaries).reduce<Dictionary>((reve
   return reverse;
 }, {});
 
-const textNodeOriginals = new WeakMap<Text, string>();
 const attrOriginals = new WeakMap<Element, Partial<Record<string, string>>>();
+const textNodeStates = new WeakMap<Text, TextNodeState>();
+const attrAppliedValues = new WeakMap<Element, Partial<Record<string, string>>>();
 const supportedAttributes = ['placeholder', 'title', 'aria-label', 'alt'] as const;
 
 let isApplyingTranslation = false;
@@ -1857,13 +1858,6 @@ const restoreSourceText = (input: string) => {
   return source ? preserveSpacing(input, source) : input;
 };
 
-const getTextNodeSource = (current: string, remembered?: string) => {
-  const restoredCurrent = restoreSourceText(current);
-  if (hasCjk(restoredCurrent.trim())) {
-    return restoredCurrent;
-  }
-  return remembered ? restoreSourceText(remembered) : restoredCurrent;
-};
 
 const translateTemplate = (text: string, language: Language) => {
   const t = (value: string) => translateText(value, language);
@@ -1998,18 +1992,40 @@ const shouldSkipTextNode = (node: Text) => {
   return false;
 };
 
+/**
+ * 记录每个文本节点「原文」与「我们上次写出去的内容」。
+ *
+ * 为什么需要 applied：本工程里有第二套 i18n（vue-i18n）负责框架与课件页的文案。
+ * 语言切换时 vue-i18n 会把同一个节点改写成英文/印尼语，如果运行时把这种改写又当成
+ * 「原文变了」而回滚成中文，就会出现「菜单切换了、页面正文还停在中文」的现象。
+ * 所以只有当节点内容仍等于我们上次写入的内容时，才复用它记录的原文。
+ */
+interface TextNodeState {
+  original: string;
+  applied: string;
+}
+
+const resolveTextNodeSource = (current: string, state?: TextNodeState) => {
+  if (state && state.applied === current) return state.original;
+  const restored = restoreSourceText(current);
+  if (hasCjk(restored.trim())) return restored;
+  // 既不是我们写的、也不含中文：说明是 vue-i18n（或后端数据）渲染出来的文案，不要动它
+  return current;
+};
+
 const translateTextNode = (node: Text, language: Language) => {
   if (shouldSkipTextNode(node)) return;
   const current = node.nodeValue ?? '';
   if (!current.trim()) return;
 
-  const previousOriginal = textNodeOriginals.get(node);
-  const original = getTextNodeSource(current, previousOriginal);
-  if (previousOriginal !== original) {
-    textNodeOriginals.set(node, original);
-  }
+  const state = textNodeStates.get(node);
+  const original = resolveTextNodeSource(current, state);
+  const foreign = !hasCjk(original.trim()) && original === current && state?.applied !== current;
 
-  const next = translateText(original, language);
+  const next = foreign ? current : translateText(original, language);
+  if (state?.original !== original || state?.applied !== next) {
+    textNodeStates.set(node, { original, applied: next });
+  }
   if (node.nodeValue !== next) {
     node.nodeValue = next;
   }
@@ -2019,19 +2035,29 @@ const translateElementAttributes = (element: Element, language: Language) => {
   if (element.closest('[data-i18n-skip="true"]')) return;
 
   const originals = attrOriginals.get(element) ?? {};
+  const attrApplied = attrAppliedValues.get(element) ?? {};
   let changed = false;
 
   for (const attr of supportedAttributes) {
     const current = element.getAttribute(attr);
     if (!current) continue;
 
-    const original = getTextNodeSource(current, originals[attr]);
+    const applied = attrApplied[attr];
+    const original = resolveTextNodeSource(
+      current,
+      applied === undefined ? undefined : { original: originals[attr] ?? current, applied }
+    );
+    const foreign = !hasCjk(original.trim()) && original === current && applied !== current;
     if (originals[attr] !== original) {
       originals[attr] = original;
       changed = true;
     }
 
-    const next = translateText(original, language);
+    const next = foreign ? current : translateText(original, language);
+    if (attrApplied[attr] !== next) {
+      attrApplied[attr] = next;
+      changed = true;
+    }
     if (current !== next) {
       element.setAttribute(attr, next);
     }
@@ -2039,6 +2065,7 @@ const translateElementAttributes = (element: Element, language: Language) => {
 
   if (changed) {
     attrOriginals.set(element, originals);
+    attrAppliedValues.set(element, attrApplied);
   }
 };
 

@@ -1,12 +1,14 @@
 <script lang="ts" setup>
 import { useTagsViewStore } from '@/store/modules/tagsView'
 import { useAppStore } from '@/store/modules/app'
+import { useLocaleStore } from '@/store/modules/locale'
 import { useRoute } from 'vue-router'
 import { Footer } from '@/layout/components/Footer'
 
 defineOptions({ name: 'AppView' })
 
 const appStore = useAppStore()
+const localeStore = useLocaleStore()
 
 const footer = computed(() => appStore.getFooter)
 const route = useRoute()
@@ -25,6 +27,15 @@ const getRouteViewKey = (route: {
   path: string
   fullPath: string
 }) => (route.name && pathStableViewNames.has(String(route.name)) ? route.path : route.fullPath)
+
+/**
+ * 语言切换时强制重建当前页面。
+ *
+ * 原因：界面文案由 vue-i18n 渲染，而部分页面（如复制的课件页）的文本只在 setup 阶段
+ * 取一次 `useI18n()`，热切换语言时不会重新渲染（刷新后才正确）。
+ * 这里把语言并入视图 key，切语言即重建页面，保证全局文案一致。
+ */
+const viewKey = computed(() => `${getRouteViewKey(route)}::${localeStore.getCurrentLocale.lang}`)
 
 //region 无感刷新
 const routerAlive = ref(true)
@@ -55,9 +66,9 @@ provide('reload', reload)
     ]"
   >
     <router-view v-if="routerAlive">
-      <template #default="{ Component, route }">
+      <template #default="{ Component }">
         <keep-alive :include="getCaches">
-          <component :is="Component" :key="getRouteViewKey(route)" />
+          <component :is="Component" :key="viewKey" />
         </keep-alive>
       </template>
     </router-view>

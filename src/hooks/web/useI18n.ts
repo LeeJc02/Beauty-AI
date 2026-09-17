@@ -1,4 +1,5 @@
 import { i18n } from '@/plugins/vueI18n'
+import { useLocaleStoreWithOut } from '@/store/modules/locale'
 
 type I18nGlobalTranslation = {
   (key: string): string
@@ -26,6 +27,7 @@ export const useI18n = (
 ): {
   t: I18nGlobalTranslation
 } => {
+  const localeStore = useLocaleStoreWithOut()
   const normalFn = {
     t: (key: string) => {
       return getKey(namespace, key)
@@ -39,6 +41,12 @@ export const useI18n = (
   const { t, ...methods } = i18n.global
 
   const tFn: I18nGlobalTranslation = (key: string, ...arg: any[]) => {
+    // 建立对语言设置的反应式依赖。
+    // i18n.global.t 是脱离组件上下文的调用，不会自己收集渲染依赖，
+    // 导致热切换语言时只有 Layout 重新渲染、页面正文仍是旧语言（刷新后才正确）。
+    // 这里读一下当前语言，让调用它的渲染副作用在语言变化时重新执行。
+    localeStore.getCurrentLocale.lang
+
     if (!key) return ''
     if (!key.includes('.') && !namespace) return key
     //@ts-ignore
