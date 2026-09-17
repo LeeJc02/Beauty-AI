@@ -1,0 +1,30 @@
+export default {
+  title: 'Analisis Harian',
+  subtitle: 'Gunakan snapshot harian untuk menemukan risiko kunjungan, tugas, dan kemajuan sumber daya',
+  actions: { refresh: 'Muat Ulang', generate: 'Buat Snapshot', export: 'Ekspor Excel', exportHtml: 'Ekspor HTML', viewDetails: 'Lihat Detail' },
+  htmlExport: { currentPageOnly: 'Hanya halaman Risiko Karyawan yang sedang ditampilkan yang disertakan.', metric: 'Indikator', current: 'Nilai Saat Ini', change: 'Perubahan dari Laporan Sebelumnya', snapshotTime: 'Waktu Snapshot' },
+  emptySnapshot: 'Belum ada snapshot yang berhasil. Buat snapshot atau tunggu tugas terjadwal.',
+  noMetric: 'Tidak ada tugas atau sumber daya jenis ini',
+  summaryEmpty: 'Tidak ada indikator nasional dengan pembagi statistik untuk hari ini',
+  summaryFallback: 'Hanya {count} indikator yang memiliki pembagi statistik hari ini, sehingga radar yang bermakna tidak dapat dibentuk. Grafik batang ditampilkan sebagai gantinya.',
+  snapshot: 'Snapshot',
+  snapshotSuccess: 'Snapshot berhasil dibuat',
+  snapshotExists: 'Snapshot berhasil untuk tanggal ini sudah tersedia',
+  calendar: { hasReport: 'Laporan tersedia' },
+  trend: { days: '{days} Hari' },
+  sections: { areaComparison: 'Perbandingan Wilayah', nationalSummary: 'Ringkasan Nasional', recentTrend: 'Tren Harian Terkini', areaDetail: 'Detail Wilayah', employeeRisk: 'Risiko Karyawan', areaTasks: 'Detail Penyelesaian Tugas', areaEmployees: 'Detail Karyawan' },
+  filters: { all: 'Semua', allAreas: 'Semua Wilayah', noVisit: 'Belum Berkunjung', behind: 'Tertinggal', due: 'Segera Berakhir' },
+  columns: {
+    area: 'Wilayah', employees: 'Karyawan', visits: 'Kunjungan', visitRate: 'Rasio Kunjungan', study: 'Tugas Belajar', courseware: 'Kemajuan Materi', practice: 'Latihan AI', exam: 'Tugas Ujian',
+    employeeId: 'ID Karyawan', nickname: 'Nama', visitedToday: 'Berkunjung Hari Ini', noVisitDays: 'Hari Berturut-turut Tanpa Kunjungan', noProgressDays: 'Hari Berturut-turut Tanpa Kemajuan', taskCompletion: 'Penyelesaian Tugas', behindTasks: 'Tugas Tertinggal', dueTasks: 'Tugas Segera Berakhir',
+    task: 'Tugas', taskType: 'Jenis Tugas', frequency: 'Frekuensi', period: 'Periode Pelaksanaan', completed: 'Selesai', resource: 'Sumber Daya', progress: 'Kemajuan', target: 'Target Kemajuan', employeeCount: 'Peserta', completedCount: 'Karyawan Selesai', completionRate: 'Rasio Penyelesaian', onTargetRate: 'Rasio Sesuai Target', achievementRate: 'Rasio Selesai / Sesuai Target', behindCount: 'Tertinggal', attempts: 'Percobaan'
+  },
+  metrics: { visitRate: 'Rasio Kunjungan', study: 'Penyelesaian Belajar', courseware: 'Rasio Materi Sesuai Target', practice: 'Penyelesaian Latihan AI', exam: 'Penyelesaian Ujian', visited: 'Kunjungan', taskCompletion: 'Penyelesaian Tugas' },
+  status: { yes: 'Ya', no: 'Tidak', completed: 'Selesai', incomplete: 'Belum Selesai', success: 'Berhasil', failed: 'Gagal', running: 'Sedang Dibuat', superseded: 'Versi Sebelumnya' },
+  resources: { COURSEWARE: 'Materi', AI_CUSTOMER: 'Pelanggan AI', AI_SCENE: 'Skenario', QUOTE: 'Pustaka Produk', EXAM_PAPER: 'Paket Ujian' },
+  taskTypes: { STUDY: 'Tugas Belajar', PRACTICE: 'Tugas Latihan', EXAM: 'Tugas Ujian' },
+  frequencies: { ONCE: 'Sekali', DAILY: 'Harian', WEEKLY: 'Mingguan', CUSTOM: 'Setiap {days} Hari' },
+  frequencyRequired: '{frequency}, {count} kali per periode',
+  drawerTitle: '{name} - Detail Tugas',
+  areaDrawerTitle: '{name} - Analisis Wilayah'
+}

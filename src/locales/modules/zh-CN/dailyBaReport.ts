@@ -1,0 +1,30 @@
+export default {
+  title: '每日分析',
+  subtitle: '以业务日快照为准，定位访问、任务和资源进度风险',
+  actions: { refresh: '刷新', generate: '生成快照', export: '导出 Excel', exportHtml: '导出 HTML', viewDetails: '查看详情' },
+  htmlExport: { currentPageOnly: '员工风险仅导出当前页面显示的内容。', metric: '指标', current: '当前值', change: '较上一份日报变化', snapshotTime: '快照时间' },
+  emptySnapshot: '暂无成功快照，请先生成或等待每日任务。',
+  noMetric: '无此类任务或资源',
+  summaryEmpty: '当天没有具备统计分母的全国指标',
+  summaryFallback: '当天仅有 {count} 项有统计分母的指标，无法构成有效雷达图，已改用柱状图展示。',
+  snapshot: '快照',
+  snapshotSuccess: '快照生成成功',
+  snapshotExists: '该日期已有成功快照，无需重复生成',
+  calendar: { hasReport: '已有报告' },
+  trend: { days: '{days} 天' },
+  sections: { areaComparison: '大区指标对比', nationalSummary: '全国指标', recentTrend: '近日报趋势', areaDetail: '大区明细', employeeRisk: '员工风险', areaTasks: '任务完成明细', areaEmployees: '员工明细' },
+  filters: { all: '全部', allAreas: '全部大区', noVisit: '未访问', behind: '进度落后', due: '临期' },
+  columns: {
+    area: '大区', employees: '人数', visits: '访问人数', visitRate: '访问率', study: '学习任务', courseware: '课件进度', practice: 'AI 练习', exam: '考试任务',
+    employeeId: '工号', nickname: '昵称', visitedToday: '今日访问', noVisitDays: '连续未访问天数', noProgressDays: '连续无进展天数', taskCompletion: '任务完成率', behindTasks: '落后任务', dueTasks: '临期任务',
+    task: '任务', taskType: '任务类型', frequency: '任务频率', period: '执行周期', completed: '是否完成', resource: '资源', progress: '进度', target: '目标进度', employeeCount: '参与人数', completedCount: '完成人数', completionRate: '完成率', onTargetRate: '进度达标率', achievementRate: '完成/达标率', behindCount: '落后人数', attempts: '尝试次数'
+  },
+  metrics: { visitRate: '访问率', study: '学习完成率', courseware: '课件进度达标率', practice: 'AI 练习完成率', exam: '考试完成率', visited: '访问', taskCompletion: '任务完成率' },
+  status: { yes: '是', no: '否', completed: '已完成', incomplete: '未完成', success: '成功', failed: '失败', running: '生成中', superseded: '历史版本' },
+  resources: { COURSEWARE: '课件', AI_CUSTOMER: 'AI 顾客', AI_SCENE: '场景', QUOTE: '产品库', EXAM_PAPER: '试卷' },
+  taskTypes: { STUDY: '学习任务', PRACTICE: '练习任务', EXAM: '考试任务' },
+  frequencies: { ONCE: '一次性', DAILY: '每天', WEEKLY: '每周', CUSTOM: '每 {days} 天' },
+  frequencyRequired: '{frequency}，每期 {count} 次',
+  drawerTitle: '{name} - 任务明细',
+  areaDrawerTitle: '{name} - 大区分析'
+}

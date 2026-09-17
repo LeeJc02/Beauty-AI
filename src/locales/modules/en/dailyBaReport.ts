@@ -1,0 +1,30 @@
+export default {
+  title: 'Daily Analysis',
+  subtitle: 'Use daily snapshots to identify visit, task, and resource progress risks',
+  actions: { refresh: 'Refresh', generate: 'Generate Snapshot', export: 'Export Excel', exportHtml: 'Export HTML', viewDetails: 'View Details' },
+  htmlExport: { currentPageOnly: 'Only the currently displayed Employee Risks page is included.', metric: 'Metric', current: 'Current Value', change: 'Change from Previous Report', snapshotTime: 'Snapshot Time' },
+  emptySnapshot: 'No successful snapshot is available. Generate one or wait for the scheduled job.',
+  noMetric: 'No task or resource of this type',
+  summaryEmpty: 'No national indicator has a statistical denominator for this day',
+  summaryFallback: 'Only {count} indicators have a statistical denominator today, so a meaningful radar chart is not available. A bar chart is shown instead.',
+  snapshot: 'Snapshot',
+  snapshotSuccess: 'Snapshot generated successfully',
+  snapshotExists: 'A successful snapshot already exists for this date',
+  calendar: { hasReport: 'Report available' },
+  trend: { days: '{days} Days' },
+  sections: { areaComparison: 'Region Comparison', nationalSummary: 'National Summary', recentTrend: 'Recent Daily Trend', areaDetail: 'Region Details', employeeRisk: 'Employee Risks', areaTasks: 'Task Completion Details', areaEmployees: 'Employee Details' },
+  filters: { all: 'All', allAreas: 'All Regions', noVisit: 'Not Visited', behind: 'Behind Target', due: 'Due Soon' },
+  columns: {
+    area: 'Region', employees: 'Employees', visits: 'Visits', visitRate: 'Visit Rate', study: 'Learning Tasks', courseware: 'Courseware Progress', practice: 'AI Practice', exam: 'Exam Tasks',
+    employeeId: 'Employee ID', nickname: 'Name', visitedToday: 'Visited Today', noVisitDays: 'Consecutive No-Visit Days', noProgressDays: 'Consecutive No-Progress Days', taskCompletion: 'Task Completion', behindTasks: 'Behind Tasks', dueTasks: 'Due-Soon Tasks',
+    task: 'Task', taskType: 'Task Type', frequency: 'Frequency', period: 'Execution Period', completed: 'Completed', resource: 'Resource', progress: 'Progress', target: 'Target Progress', employeeCount: 'Participants', completedCount: 'Completed Employees', completionRate: 'Completion Rate', onTargetRate: 'On-Target Rate', achievementRate: 'Completion / On-Target Rate', behindCount: 'Behind', attempts: 'Attempts'
+  },
+  metrics: { visitRate: 'Visit Rate', study: 'Learning Completion', courseware: 'Courseware On-Target Rate', practice: 'AI Practice Completion', exam: 'Exam Completion', visited: 'Visited', taskCompletion: 'Task Completion' },
+  status: { yes: 'Yes', no: 'No', completed: 'Completed', incomplete: 'Incomplete', success: 'Success', failed: 'Failed', running: 'Generating', superseded: 'Previous Version' },
+  resources: { COURSEWARE: 'Courseware', AI_CUSTOMER: 'AI Customer', AI_SCENE: 'Scenario', QUOTE: 'Product Library', EXAM_PAPER: 'Exam Paper' },
+  taskTypes: { STUDY: 'Learning Task', PRACTICE: 'Practice Task', EXAM: 'Exam Task' },
+  frequencies: { ONCE: 'Once', DAILY: 'Daily', WEEKLY: 'Weekly', CUSTOM: 'Every {days} Days' },
+  frequencyRequired: '{frequency}, {count} per period',
+  drawerTitle: '{name} - Task Details',
+  areaDrawerTitle: '{name} - Region Analysis'
+}

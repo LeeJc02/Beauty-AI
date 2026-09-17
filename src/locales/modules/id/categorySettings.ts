@@ -1,0 +1,33 @@
+export default {
+  "menu": {
+    "root": "Manajemen Kategori",
+    "category": "Manajemen Kategori"
+  },
+  "pageTitle": "Konfigurasi Merek, Seri & Kategori",
+  "pageDesc": "Kelola merek, seri, dan kategori produk; perubahan disinkronkan ke pustaka produk dan knowledge base.",
+  "categoryManageTitle": "Manajemen Seri & Kategori",
+  "contentCount": "Terkait {count} produk",
+  "tagContentCount": "{count} produk",
+  "viewContentCount": "Lihat jumlah terkait",
+  "brandManageTitle": "Manajemen Merek",
+  "brandNamePlaceholder": "Nama lengkap merek",
+  "brandShortNamePlaceholder": "Singkatan merek",
+  "addBrand": "Tambah",
+  "edit": "Edit",
+  "delete": "Hapus",
+  "addSubTag": "Tambah Kategori",
+  "newCategoryPlaceholder": "Masukkan nama seri baru",
+  "addCategory": "Tambah Seri",
+  "syncRuleTitle": "Aturan Sinkronisasi",
+  "forceAssociation": "Batasan Asosiasi Wajib",
+  "forceAssociationDesc": "Produk harus memilih merek dan kategori langsung. Konten tanpa kategori tidak dapat digunakan secara akurat untuk pelatihan dan pencarian knowledge.",
+  "autoCascadeUpdate": "Pembaruan Bertingkat Otomatis",
+  "autoCascadeUpdateDesc": "Saat seri dari kategori berubah, produk terkait akan mengikuti kategori langsung agar klasifikasi tetap konsisten.",
+  "tagPlaceholder": "Nama kategori",
+  "emptyText": "Belum ada seri. Tambahkan di bawah.",
+  "tagCreateSuccess": "Kategori berhasil ditambahkan",
+  "tagDelSuccess": "Kategori berhasil dihapus",
+  "nameRequired": "Silakan masukkan nama seri",
+  "tagNameRequired": "Silakan masukkan nama kategori",
+  "deleteCategoryConfirm": "Apakah Anda yakin ingin menghapus seri ini? Semua kategori terkait juga akan dihapus."
+}

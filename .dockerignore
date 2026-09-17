@@ -1,0 +1,5 @@
+node_modules
+dist
+dist-*
+ci-artifacts/*
+!ci-artifacts/dist/**

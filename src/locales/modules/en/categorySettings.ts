@@ -1,0 +1,33 @@
+export default {
+  "menu": {
+    "root": "Category Management",
+    "category": "Category Management"
+  },
+  "pageTitle": "Brand, Series & Category Configuration",
+  "pageDesc": "Manage brands, series, and product categories; changes auto-sync to the product library and knowledge base.",
+  "categoryManageTitle": "Series & Category Management",
+  "contentCount": "Linked to {count} products",
+  "tagContentCount": "{count} products",
+  "viewContentCount": "View linked count",
+  "brandManageTitle": "Brand Management",
+  "brandNamePlaceholder": "Full brand name",
+  "brandShortNamePlaceholder": "Brand abbreviation",
+  "addBrand": "Add",
+  "edit": "Edit",
+  "delete": "Delete",
+  "addSubTag": "Add Category",
+  "newCategoryPlaceholder": "Enter new series name",
+  "addCategory": "Add Series",
+  "syncRuleTitle": "Sync Rules",
+  "forceAssociation": "Mandatory Association Constraint",
+  "forceAssociationDesc": "Products should select a brand and direct category. Uncategorized content cannot be used accurately for training and knowledge retrieval.",
+  "autoCascadeUpdate": "Automatic Cascade Update",
+  "autoCascadeUpdateDesc": "When a category's series changes, related products will follow their direct category to keep classification consistent.",
+  "tagPlaceholder": "Category name",
+  "emptyText": "No series yet. Add one below.",
+  "tagCreateSuccess": "Category added successfully",
+  "tagDelSuccess": "Category deleted successfully",
+  "nameRequired": "Please enter a series name",
+  "tagNameRequired": "Please enter a category name",
+  "deleteCategoryConfirm": "Are you sure you want to delete this series? All associated categories will also be deleted."
+}

@@ -2,11 +2,24 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SalesBoost AI Training System</title>
+    <title>%VITE_APP_TITLE%</title>
+    <script>
+      // 启动期错误兜底：模块级异常或未处理的 Promise 拒绝会把原因写到标题，避免白屏时无从排查。
+      window.addEventListener('error', (e) => {
+        document.title = 'ERR: ' + (e.message || e.error)
+      })
+      window.addEventListener('unhandledrejection', (e) => {
+        document.title = 'REJ: ' + ((e.reason && e.reason.message) || e.reason)
+      })
+    </script>
+    <script src="/config.js"></script>
   </head>
   <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

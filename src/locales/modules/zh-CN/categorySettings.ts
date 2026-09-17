@@ -1,0 +1,33 @@
+export default {
+  "menu": {
+    "root": "类目管理",
+    "category": "类目管理"
+  },
+  "pageTitle": "品牌与产品系列配置",
+  "pageDesc": "管理品牌、系列和产品类目，变更将同步至产品库与知识库",
+  "categoryManageTitle": "产品系列与类目管理",
+  "contentCount": "已关联 {count} 个产品",
+  "tagContentCount": "{count} 个产品",
+  "viewContentCount": "查看关联数量",
+  "brandManageTitle": "品牌管理",
+  "brandNamePlaceholder": "品牌全称",
+  "brandShortNamePlaceholder": "品牌缩写",
+  "addBrand": "新增",
+  "edit": "编辑",
+  "delete": "删除",
+  "addSubTag": "增加类目",
+  "newCategoryPlaceholder": "输入新系列名称",
+  "addCategory": "添加系列",
+  "syncRuleTitle": "同步规则设置",
+  "forceAssociation": "强制关联约束",
+  "forceAssociationDesc": "产品入库时应选择品牌和直属类目。未分类内容将无法准确用于训练和知识检索。",
+  "autoCascadeUpdate": "自动级联更新",
+  "autoCascadeUpdateDesc": "当类目所属的系列变更时，关联产品会跟随直属类目维持一致。",
+  "tagPlaceholder": "类目名",
+  "emptyText": "暂无系列，请在下方添加",
+  "tagCreateSuccess": "类目添加成功",
+  "tagDelSuccess": "类目删除成功",
+  "nameRequired": "请输入系列名称",
+  "tagNameRequired": "请输入类目名称",
+  "deleteCategoryConfirm": "确定删除该系列吗？删除后关联的类目也将一并删除。"
+}

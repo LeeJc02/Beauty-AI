@@ -1,0 +1,212 @@
+/* BEAUTY AI visual system, ported from Beauty-AI prototype README 2026-05-09 */
+html,
+body,
+#app {
+  background: var(--beauty-bg);
+  color: var(--beauty-text);
+}
+
+.layout-border__right {
+  border-right-color: rgb(255 255 255 / 5%) !important;
+}
+
+.layout-border__bottom,
+.layout-border__top {
+  border-color: var(--beauty-border) !important;
+}
+
+.v-tool-header {
+  min-height: var(--top-tool-height);
+  padding-inline: 24px !important;
+  color: var(--beauty-text);
+  border-bottom: 1px solid var(--beauty-border);
+  box-shadow: 0 1px 8px rgb(36 31 28 / 4%);
+}
+
+.v-logo {
+  padding-left: 20px !important;
+}
+
+.v-menu {
+  background: var(--left-menu-bg-color);
+}
+
+.v-menu .el-menu-item,
+.v-menu .el-sub-menu__title {
+  height: 42px;
+  margin: 3px 10px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+.v-menu .el-menu-item.is-active {
+  font-weight: 700;
+}
+
+.v-menu .el-sub-menu .el-menu-item {
+  height: 38px;
+  margin-left: 12px;
+  margin-right: 12px;
+}
+
+.el-button--primary {
+  --el-button-bg-color: var(--beauty-brand);
+  --el-button-border-color: var(--beauty-brand);
+  --el-button-hover-bg-color: #974f3e;
+  --el-button-hover-border-color: #974f3e;
+  --el-button-active-bg-color: #874737;
+  --el-button-active-border-color: #874737;
+  box-shadow: 0 8px 16px rgb(168 95 75 / 14%);
+}
+
+.el-button.is-link.el-button--primary {
+  box-shadow: none;
+}
+
+.el-card,
+.el-dialog,
+.el-message-box {
+  border-color: var(--beauty-border);
+  border-radius: var(--beauty-radius-lg);
+  box-shadow: var(--beauty-shadow-soft);
+}
+
+.el-dialog__header,
+.el-message-box__header {
+  border-bottom: 1px solid var(--beauty-border-soft);
+}
+
+.el-input__wrapper,
+.el-textarea__inner,
+.el-select__wrapper,
+.el-date-editor.el-input__wrapper {
+  border-radius: 10px;
+  box-shadow: 0 0 0 1px var(--beauty-border) inset;
+}
+
+.el-input__wrapper:hover,
+.el-textarea__inner:hover,
+.el-select__wrapper:hover {
+  box-shadow: 0 0 0 1px #f3c9bc inset;
+}
+
+.el-input__wrapper.is-focus,
+.el-textarea__inner:focus,
+.el-select__wrapper.is-focused {
+  box-shadow:
+    0 0 0 1px var(--beauty-brand) inset,
+    0 0 0 3px rgb(168 95 75 / 12%);
+}
+
+.ranking-area-multi-select .el-select__wrapper {
+  overflow: hidden;
+}
+
+.ranking-area-multi-select .el-select__selection {
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+
+.ranking-area-multi-select .el-select__selected-item:not(.el-select__input-wrapper):not(.el-select__placeholder) {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 120px;
+}
+
+.ranking-area-multi-select .el-select__selected-item > .el-tag {
+  max-width: 100% !important;
+}
+
+.national-all-tasks-dialog {
+  max-width: calc(100vw - 32px);
+}
+
+@media (max-width: 767px) {
+  .national-all-tasks-dialog {
+    --el-dialog-margin-top: 16px;
+    margin-bottom: 16px;
+  }
+
+  .national-all-tasks-dialog .all-task-type-filter {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .national-all-tasks-dialog .all-task-type-filter .el-radio-button,
+  .national-all-tasks-dialog .all-task-type-filter .el-radio-button__inner {
+    width: 100%;
+  }
+
+  .national-all-tasks-dialog .all-task-filter-fields {
+    justify-content: stretch;
+    width: 100%;
+  }
+
+  .national-all-tasks-dialog .all-task-area-filter {
+    width: 100% !important;
+  }
+
+  .national-all-tasks-dialog .all-task-date-filter {
+    flex: 1 1 160px;
+    width: auto !important;
+  }
+
+  .national-all-tasks-dialog .el-pagination {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+}
+
+.el-table {
+  --el-table-header-bg-color: #fbf8f6;
+  --el-table-header-text-color: var(--beauty-text-muted);
+  --el-table-border-color: var(--beauty-border-soft);
+  border-radius: var(--beauty-radius);
+  overflow: hidden;
+}
+
+.el-tag--primary,
+.el-tag.el-tag--primary {
+  --el-tag-bg-color: var(--beauty-brand-soft);
+  --el-tag-border-color: #f3c9bc;
+  --el-tag-text-color: var(--beauty-brand);
+}
+
+.el-tabs__item.is-active,
+.el-tabs__item:hover {
+  color: var(--beauty-brand);
+}
+
+.el-tabs__active-bar {
+  background-color: var(--beauty-brand);
+}
+
+.beauty-surface {
+  background: var(--beauty-card-bg);
+  border: 1px solid var(--beauty-border);
+  box-shadow: var(--beauty-shadow-soft);
+}
+
+.beauty-card {
+  background: var(--beauty-card-bg);
+  border: 1px solid var(--beauty-border);
+  border-radius: var(--beauty-radius);
+  box-shadow: var(--beauty-shadow-soft);
+}
+
+.beauty-tag {
+  border: 1px solid #f1d8dc;
+  background: #fff3f5;
+  color: #a84d5d;
+}
+
+.ai-accent {
+  color: var(--beauty-ai);
+}
+
+.ai-soft {
+  border: 1px solid #d8deff;
+  background: var(--beauty-ai-soft);
+  color: var(--beauty-ai);
+}

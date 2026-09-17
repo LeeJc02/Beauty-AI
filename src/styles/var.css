@@ -1,0 +1,112 @@
+:root {
+  --login-bg-color: #293146;
+
+  --beauty-bg: #f7f3f1;
+  --beauty-card-bg: #ffffff;
+  --beauty-text: #242124;
+  --beauty-text-strong: #1f1c1f;
+  --beauty-text-muted: #766f73;
+  --beauty-text-subtle: #9a9396;
+  --beauty-border: #e5ded8;
+  --beauty-border-soft: #eee8e3;
+  --beauty-brand: #a85f4b;
+  --beauty-brand-muted: #c97967;
+  --beauty-brand-soft: #fff0e8;
+  --beauty-rose: #f43f5e;
+  --beauty-rose-strong: #e11d48;
+  --beauty-rose-soft: #fff1f2;
+  --beauty-ai: #515bcb;
+  --beauty-ai-soft: #eef1ff;
+  --beauty-success: #3b8f72;
+  --beauty-warning: #b9822b;
+  --beauty-danger: #d9485f;
+  --beauty-radius: 12px;
+  --beauty-radius-lg: 16px;
+  --beauty-shadow-soft: 0 8px 24px rgb(36 31 28 / 4%);
+  --beauty-shadow-xs: 0 1px 2px rgb(36 31 28 / 5%);
+  --beauty-shadow-toast: 0 10px 15px -3px rgb(36 31 28 / 10%), 0 4px 6px -4px rgb(36 31 28 / 10%);
+  --beauty-success-soft: color-mix(in srgb, var(--beauty-success) 18%, var(--beauty-card-bg));
+  --beauty-danger-soft: color-mix(in srgb, var(--beauty-danger) 8%, var(--beauty-card-bg));
+  --beauty-rose-hover: color-mix(in srgb, var(--beauty-rose-strong) 86%, black);
+  --beauty-rose-subtle: color-mix(in srgb, var(--beauty-rose-soft) 50%, transparent);
+  --beauty-rose-border-soft: color-mix(in srgb, var(--beauty-rose-soft) 72%, var(--beauty-rose) 8%);
+  --beauty-neutral-soft: color-mix(in srgb, var(--beauty-bg) 70%, var(--beauty-card-bg));
+
+  --el-color-primary: var(--beauty-brand);
+  --el-color-primary-rgb: 168, 95, 75;
+  --el-color-success: var(--beauty-success);
+  --el-color-warning: var(--beauty-warning);
+  --el-color-danger: var(--beauty-danger);
+  --el-color-error: var(--beauty-danger);
+
+  --left-menu-max-width: 240px;
+
+  --left-menu-min-width: 64px;
+
+  --left-menu-bg-color: #171518;
+
+  --left-menu-bg-light-color: #201d21;
+
+  --left-menu-bg-active-color: rgb(255 255 255 / 12%);
+
+  --left-menu-text-color: rgb(255 255 255 / 70%);
+
+  --left-menu-text-active-color: #fff;
+
+  --left-menu-collapse-bg-active-color: rgb(255 255 255 / 12%);
+  /* left menu end */
+
+  /* logo start */
+  --logo-height: 50px;
+
+  --logo-title-text-color: #fff;
+  /* logo end */
+
+  /* header start */
+  --top-header-bg-color: #fff;
+
+  --top-header-text-color: #242124;
+
+  --top-header-hover-color: #f8f5f3;
+
+  --top-tool-height: var(--logo-height);
+
+  --top-tool-p-x: 0;
+
+  --tags-view-height: 35px;
+  /* header start */
+
+  /* tab menu start */
+  --tab-menu-max-width: 80px;
+
+  --tab-menu-min-width: 30px;
+
+  --tab-menu-collapse-height: 36px;
+  /* tab menu end */
+
+  --app-content-padding: 20px;
+
+  --app-content-bg-color: var(--beauty-bg);
+
+  --app-footer-height: 50px;
+
+  --transition-time-02: 0.2s;
+}
+
+.dark {
+  --app-content-bg-color: var(--el-bg-color);
+}
+
+html,
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+*,
+:after,
+:before {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
