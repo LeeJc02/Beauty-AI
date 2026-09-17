@@ -6,7 +6,6 @@ import {
   DEMO_PRODUCTS,
   DEMO_VOICES,
   FILE_CAPABILITIES,
-  demoContent,
   demoParts,
   demoPages,
   demoQuestions,
@@ -663,7 +662,11 @@ export const coursewareRoutes: MockRoute[] = [
             ? 'Terima kasih, saya susun ringkasan kebutuhan.'
             : '收到，我据此整理需求规格。',
         questions,
-        answers
+        answers: answers.map((answer) => ({
+          questionId: answer.id,
+          value: answer.value,
+          ...(answer.note ? { note: answer.note } : {})
+        }))
       })
       job.phase = 'summary'
       job.phaseStartedAt = Date.now()
@@ -763,7 +766,7 @@ export const coursewareRoutes: MockRoute[] = [
       if (job) {
         advance(job)
         saveStore()
-        const snap = snapshot(job)
+        const snap = snapshot(job) as Record<string, any>
         return {
           ...snap,
           coursewareId: snap.coursewareId || coursewareId,

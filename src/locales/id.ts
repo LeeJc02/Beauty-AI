@@ -13,7 +13,6 @@ import idBaEfficiency from './modules/id/baEfficiency'
 import idDailyBaReportSettings from './modules/id/dailyBaReportSettings'
 import idWeeklyBaReport from './modules/id/weeklyBaReport'
 import en from './en'
-import { beautyMenuId } from './modules/beautyMenu'
 
 export default {
   ...en,

@@ -12,7 +12,6 @@ import zhCNDailyBaReport from './modules/zh-CN/dailyBaReport'
 import zhCNBaEfficiency from './modules/zh-CN/baEfficiency'
 import zhCNDailyBaReportSettings from './modules/zh-CN/dailyBaReportSettings'
 import zhCNWeeklyBaReport from './modules/zh-CN/weeklyBaReport'
-import { beautyMenuZh } from './modules/beautyMenu'
 export default {
   menu: {
     system: zhCNSystemManagement.menu,

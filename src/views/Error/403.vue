@@ -15,7 +15,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ElMessageBox } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import type { RouteRecordRaw } from 'vue-router'
 import { deleteUserCache } from '@/hooks/web/useCache'
 import { usePermissionStore } from '@/store/modules/permission'

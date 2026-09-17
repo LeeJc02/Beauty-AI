@@ -188,7 +188,11 @@ export const studioZh = {
   emptyCard3Title: '逐页讲解与互动设计',
   emptyCard3Desc: '将知识沉淀为层层递进的逐页大纲与配套习题',
   reviewOutlineSummary: '大纲包含 {parts} 个部分，共 {pages} 页课件',
-  slideCountBadge: '共 {count} 页'
+  slideCountBadge: '共 {count} 页',
+  // 下面三个键在页面内已有兜底文案，这里补齐以避免 vue-i18n 的 fallback 告警
+  swapPanels: '交换左右面板',
+  previewPrevious: '上一页',
+  previewNext: '下一页'
 }
 export const studioEn = {
   addFiles: 'Add more files',
@@ -390,7 +394,10 @@ export const studioEn = {
   emptyCard3Title: 'Slide outline & Practice',
   emptyCard3Desc: 'Structure knowledge into progressive pages and exercises.',
   reviewOutlineSummary: 'Outline has {parts} parts, {pages} slides total',
-  slideCountBadge: '{count} slides'
+  slideCountBadge: '{count} slides',
+  swapPanels: 'Swap panels',
+  previewPrevious: 'Previous',
+  previewNext: 'Next'
 }
 export const studioId = {
   addFiles: 'Tambahkan file',
@@ -593,5 +600,8 @@ export const studioId = {
   emptyCard3Title: 'Kerangka materi & Latihan',
   emptyCard3Desc: 'Susun pengetahuan menjadi materi bertahap dan latihan.',
   reviewOutlineSummary: 'Kerangka berisi {parts} bagian, total {pages} slide',
-  slideCountBadge: 'Total {count} slide'
+  slideCountBadge: 'Total {count} slide',
+  swapPanels: 'Tukar panel',
+  previewPrevious: 'Sebelumnya',
+  previewNext: 'Berikutnya'
 }

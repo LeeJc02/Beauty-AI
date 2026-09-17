@@ -9,7 +9,6 @@
 import {
   AUTO_RUN_MINUTES_DEFAULT,
   KIND_LABELS,
-  LEVEL_LABELS,
   clampAutoRunMinutes,
   formatCadence,
   parseCadenceMinutes,
@@ -303,7 +302,7 @@ const minutesPerPersonOf = (
 
 /** 任务清单里每一项的一句话尾巴：多少人、多少分钟、有没有问题。 */
 const plainTaskLine = (
-  state: InspectionState,
+  _state: InspectionState,
   task: InspectionTask,
   risks: InspectionRisk[],
   aggregates: { people: { items: { taskId: string; minutes: number }[] }[] }[],
@@ -323,9 +322,6 @@ const plainTaskLine = (
 const DUPLICATE_RULES = ["C3", "C5", "D2", "D3"];
 /** 任务挤在同几天。 */
 const CROWD_RULES = ["B3", "A5", "A3"];
-/** 任务量超了。 */
-const LOAD_RULES = ["A1", "A2", "A4", "A6"];
-
 const followUpDefaults = [
   "这一周哪些任务重合了？",
   "人均要做多少分钟？",

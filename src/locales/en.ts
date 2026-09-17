@@ -12,7 +12,6 @@ import enDailyBaReport from './modules/en/dailyBaReport'
 import enBaEfficiency from './modules/en/baEfficiency'
 import enDailyBaReportSettings from './modules/en/dailyBaReportSettings'
 import enWeeklyBaReport from './modules/en/weeklyBaReport'
-import { beautyMenuEn } from './modules/beautyMenu'
 export default {
   menu: {
     system: enSystemManagement.menu,

@@ -595,9 +595,6 @@ const frequencyText = (task: InspectionTask) =>
     ? `${FREQUENCY_LABELS[task.frequency.unit]} ${task.frequency.count} 次`
     : "未配置频次";
 
-const weightText = (task: InspectionTask) =>
-  task.weight ? WEIGHT_LABELS[task.weight] : "未标注权重";
-
 const ownerConfirmation = (state: InspectionState, task: InspectionTask) => {
   const hq = confirmationFor(state, task.owners.hqOwnerId || null, "总部负责人");
   if (hq) return hq;
@@ -2591,7 +2588,7 @@ export function applyTaskPatch(
         if (!base.length || total === 0) {
           next.resources = next.resources.map((resource, index) => ({
             ...resource,
-            minutes: index === 0 ? patch.minutes : 0,
+            minutes: index === 0 ? (patch.minutes ?? null) : 0,
           }));
         } else {
           let assigned = 0;
@@ -2825,7 +2822,7 @@ export function applyDisposition(
   const target = next.tasks.find((item) => item.id === task.id)!;
   const before = structuredClone(target);
   let exceptionId: string | null = null;
-  let handoverTo: RiskConfirmation | null = input.handoverTo ?? null;
+  const handoverTo: RiskConfirmation | null = input.handoverTo ?? null;
   if (input.action === "mark-exception") {
     if (!input.exception) throw new Error("请填写例外到期日");
     if (!/^\d{4}-\d{2}-\d{2}$/.test(input.exception.expiresOn))

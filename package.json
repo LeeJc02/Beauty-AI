@@ -19,7 +19,8 @@
     "clean:cache": "npx rimraf node_modules/.cache",
     "lint:eslint": "eslint --fix --ext .js,.ts,.vue ./src",
     "lint:format": "prettier --write --loglevel warn \"src/**/*.{js,ts,json,css,scss,vue,html,md}\"",
-    "test:unit": "vitest run"
+    "test:unit": "vitest run",
+    "test:beauty": "node --import tsx --test src/beauty/lib/*.test.ts"
   },
   "dependencies": {
     "@element-plus/icons-vue": "2.3.2",
@@ -29,7 +30,7 @@
     "animate.css": "^4.1.1",
     "axios": "1.9.0",
     "cos-js-sdk-v5": "^1.10.1",
-    "cropperjs": "^1.6.1",
+    "cropperjs": "1.6.2",
     "crypto-js": "^4.2.0",
     "dayjs": "^1.11.10",
     "echarts": "^5.5.0",
@@ -86,6 +87,7 @@
     "stylelint-config-recommended": "^14.0.0",
     "stylelint-config-standard": "^36.0.0",
     "stylelint-order": "^6.0.4",
+    "tsx": "^4.21.0",
     "typescript": "5.3.3",
     "unocss": "^0.58.5",
     "unplugin-auto-import": "^0.16.7",
@@ -117,6 +119,9 @@
       "es5-ext",
       "esbuild",
       "vue-demi"
-    ]
+    ],
+    "overrides": {
+      "cropperjs": "1.6.2"
+    }
   }
 }

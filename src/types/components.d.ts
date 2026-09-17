@@ -20,7 +20,6 @@ export type ComponentName =
   | 'SelectV2'
   | 'TreeSelect'
   | 'InputPassword'
-  | 'Editor'
   | 'UploadImg'
   | 'UploadImgs'
   | 'UploadFile'

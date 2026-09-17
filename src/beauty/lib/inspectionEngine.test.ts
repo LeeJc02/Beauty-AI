@@ -21,7 +21,6 @@ import type { InspectionActor, InspectionState } from "./inspectionTypes";
 
 const today = inspectionDay();
 const week = weekStart(today);
-const nextWeek = addDays(week, 7);
 const base = () => createInspectionState();
 const risksOf = (state: InspectionState, weeks: string[] = [week]) =>
   evaluateRisks(state, weeks, today);

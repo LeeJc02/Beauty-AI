@@ -1313,7 +1313,7 @@ const ALL_SCOPE_HINT = /全国|全部区域|所有区域|各个区域|全区/;
  * 定时汇报默认复盘「最近一个完整周」，所以这里以单周期为主，
  * 多周期趋势对比属于后续设计项（见《Supervisor 待确定设计》）。
  */
-export function weekOptions(state: InspectionState, today = inspectionDay()) {
+export function weekOptions(_state: InspectionState, today = inspectionDay()) {
   const current = weekStart(today);
   const shift = (count: number) => {
     const date = new Date(`${current}T00:00:00Z`);
@@ -1515,7 +1515,7 @@ const FOCUS_INTRO: Record<AuditFocus, string> = {
 };
 
 export function planFor(
-  state: InspectionState,
+  _state: InspectionState,
   ctx: AuditContext,
   question: string,
 ): AuditPlan {

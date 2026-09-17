@@ -15,6 +15,8 @@ export default defineConfig({
   test: {
     environment: 'happy-dom',
     include: ['src/**/*.test.ts'],
+    // src/beauty 下的用例沿用原型仓库的 node:test（见 package.json 的 test:beauty）
+    exclude: ['src/beauty/**', '**/node_modules/**'],
     globals: true,
     restoreMocks: true
   }

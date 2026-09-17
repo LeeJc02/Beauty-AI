@@ -83,6 +83,7 @@ import { propTypes } from '@/utils/propTypes'
 import { createImageViewer } from '@/components/ImageViewer'
 import { useUpload } from '@/components/UploadFile/src/useUpload'
 import { CropperImage } from '@/components/Cropper'
+import type CropperJs from 'cropperjs'
 import type { Cropper } from '@/components/Cropper/src/types'
 import { compressImageFile, DEFAULT_IMAGE_MAX_SIZE, renameByType } from '@/utils/imageCompress'
 
@@ -151,7 +152,8 @@ const cropper = ref<Cropper>()
 let cropFileName = ''
 let cropResolve: ((file: File | null) => void) | null = null
 
-const cropOptions = computed(() => ({
+// 显式标注为 cropperjs 的 Options：否则 `viewMode: 1` 会被推断成 number，与 ViewMode 字面量联合类型不兼容
+const cropOptions = computed<CropperJs.Options>(() => ({
   aspectRatio: props.cropAspectRatio > 0 ? props.cropAspectRatio : 1,
   viewMode: 1,
   autoCropArea: 1
@@ -229,7 +231,8 @@ const confirmCrop = () => {
 
 const beforeUpload: UploadProps['beforeUpload'] = async (rawFile) => {
   // 先裁剪取景，再压缩瘦身，最后按结果做格式与体积校验
-  let file = rawFile
+  // 显式声明为 File：裁剪/压缩后可能不再是 UploadRawFile（没有 uid 字段）
+  let file: File = rawFile
   if (props.crop) {
     const cropped = await openCropDialog(rawFile)
     if (!cropped) {
