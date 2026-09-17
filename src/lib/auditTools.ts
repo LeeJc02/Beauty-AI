@@ -583,8 +583,29 @@ function checkDataGaps(
       list[0].origin === "source" ? "外部接入" : "平台创建",
     ]);
   const first = [...gaps.values()][0]?.[0];
+  const mediaTasks = tasks.filter((task) => task.sourceFacts?.media);
+  const mediaNeedsAttention = mediaTasks.reduce(
+    (sum, task) => {
+      const media = task.sourceFacts!.media!;
+      return sum + media.analysisProcessing + media.analysisNeedsAttention + media.analysisFailed;
+    },
+    0,
+  );
+  const mediaRows = mediaTasks.flatMap((task) => {
+    const media = task.sourceFacts!.media!;
+    const attention = media.analysisProcessing + media.analysisNeedsAttention + media.analysisFailed;
+    return attention
+      ? [[
+          "采集结果",
+          `${attention} 条`,
+          `${task.title} · 分析中 ${media.analysisProcessing} / 待复核 ${media.analysisNeedsAttention} / 失败 ${media.analysisFailed}`,
+          "ADM 结果侧",
+        ]]
+      : [];
+  });
+  const allRows = [...rows, ...mediaRows];
   return {
-    headline: `${tasks.length} 项任务中 ${complete} 项字段完整，${gaps.size} 类字段缺失，涉及 ${affected.size} 项任务。`,
+    headline: `${tasks.length} 项任务中 ${complete} 项字段完整，${gaps.size} 类配置字段缺失，${mediaNeedsAttention ? `另有 ${mediaNeedsAttention} 条采集结果待处理。` : "采集结果侧无待处理项。"}`,
     facts: [
       { label: "字段完整", value: `${complete} / ${tasks.length} 项` },
       { label: "完整率", value: ratio(tasks.length ? complete / tasks.length : 1) },
@@ -594,19 +615,30 @@ function checkDataGaps(
         value: gaps.size ? `${gaps.size} 条` : "0 条",
         hint: "异常码 DATA_FIELD_MISSING，只标「数据不足」，不判定违规",
       },
+      {
+        label: "采集结果待处理",
+        value: mediaNeedsAttention ? `${mediaNeedsAttention} 条` : "0 条",
+        hint: "分析中、需人工复核、分析失败分别处理；不等同于任务未发布",
+      },
     ],
-    table: rows.length
-      ? { columns: ["缺失字段", "任务数", "涉及任务", "任务来源"], rows }
+    table: allRows.length
+      ? { columns: ["缺失字段 / 结果侧", "任务数 / 条数", "涉及任务", "来源"], rows: allRows }
       : undefined,
     notes: [
-      "核对字段：预计时长、逐人分配、结构化频次、任务负责人、任务版本、推送记录、完成回传。",
+      "配置字段与结果字段分开核对：预计时长、逐人分配、结构化频次、任务负责人、任务版本、推送记录、完成回传。",
       "缺字段只产出「数据不足」结论，不会被判定为违规；缺预计时长的人员不计入工时口径。",
+      "采集任务沿用 ADM 的分层状态：任务有 PUBLISHED/PAUSED/ENDED，提交另看 enabled，AI 分析另看 PROCESSING/NEEDS_ATTENTION/FAILED，不能用一个状态覆盖。",
       gaps.size
         ? `补齐入口：任务编辑页补齐后可重跑审计；字段缺失属于业务数据问题（可重试=false，需要用户补齐）。`
         : "本期没有需要补齐字段的任务。",
     ],
-    sources: ["业务库 · 任务配置字段", "业务库 · 内容资源时长", "业务库 · 人员名单快照"],
-    scanned: `${tasks.length} 项任务 × 7 个必填字段`,
+    sources: [
+      "业务库 · 任务配置字段",
+      "业务库 · 内容资源时长",
+      "业务库 · 人员名单快照",
+      ...(mediaTasks.length ? ["ADM · 采集提交、分析与来源可用性"] : []),
+    ],
+    scanned: `${tasks.length} 项任务 × 7 个必填字段${mediaTasks.length ? ` · ${mediaTasks.length} 项采集结果侧任务` : ""}`,
     ms,
     traceId,
     error: first

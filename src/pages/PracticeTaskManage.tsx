@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/
 import { getProgressTone, getTaskStatusBadgeClass } from '../lib/visualTones';
 import type { MediaKind, PracticeCaptureConfig } from '../types';
 import { syncInspectionSource } from '../lib/inspectionStore';
+import { DEMO_PREVIOUS_WEEK, DEMO_WEEK, demoDate } from '../lib/demoDates';
 
 const MOCK_AVATARS = [
   { id: 'a1', title: 'Ibu Nisa (VIP)' },
@@ -28,8 +29,8 @@ export const MOCK_PRACTICE_TASKS = [
     id: 'pt1',
     title: '11月每日打卡：双萃冲刺陪练',
     status: '进行中',
-    publishTime: '2023-11-01',
-    deadline: '2023-11-30',
+    publishTime: DEMO_WEEK,
+    deadline: demoDate(6),
     target: '全国直营门店BA',
     frequency: '每日完成 1 次',
     items: {
@@ -57,8 +58,8 @@ export const MOCK_PRACTICE_TASKS = [
     id: 'pt2',
     title: '新功能实战：场景剧本每周通关',
     status: '已结束',
-    publishTime: '2023-10-01',
-    deadline: '2023-10-31',
+    publishTime: DEMO_PREVIOUS_WEEK,
+    deadline: demoDate(-2),
     target: '华东区BA',
     frequency: '每周完成 3 次',
     items: {
@@ -82,8 +83,8 @@ export const MOCK_PRACTICE_TASKS = [
     id: 'pt3',
     title: '南区特定客诉处理专项',
     status: '进行中',
-    publishTime: '2023-11-15',
-    deadline: '2023-12-15',
+    publishTime: demoDate(2),
+    deadline: demoDate(20),
     target: '南区所有门店BA',
     frequency: '每周完成 2 次',
     items: {
@@ -513,7 +514,7 @@ export function PracticeTaskManage({ isReadOnly = false, userRole }: { isReadOnl
                 title: '新建测试任务',
                 status: '进行中',
                 publishTime: new Date().toISOString().split('T')[0],
-                deadline: '2023-12-31',
+                deadline: demoDate(14),
                 target: '选中的人群',
                 frequency: '每日完成 1 次',
                 items: {

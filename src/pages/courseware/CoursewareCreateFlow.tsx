@@ -11,8 +11,8 @@ import {
   type CwQuestion,
   type CwTask,
 } from "../../lib/coursewareStudio";
-import { CoursewareEntry } from "./CoursewareEntry";
-import { CoursewareStudio } from "./CoursewareStudio";
+import { VueCoursewareEntry } from "./VueCoursewareEntry";
+import { VueCoursewareStudio } from "./VueCoursewareStudio";
 import { CoursewareResult } from "./CoursewareResult";
 import "./courseware.css";
 
@@ -231,7 +231,7 @@ export function CoursewareCreateFlow() {
         style={{ display: "flex", minHeight: 0, flex: 1, flexDirection: "column" }}
       >
         {view === "entry" ? (
-          <CoursewareEntry
+          <VueCoursewareEntry
             form={form}
             setForm={setForm}
             onStart={handleStart}
@@ -241,7 +241,7 @@ export function CoursewareCreateFlow() {
         ) : null}
 
         {view === "studio" && task ? (
-          <CoursewareStudio
+          <VueCoursewareStudio
             task={task}
             sourcePrompt={form.prompt}
             busy={busy}
@@ -250,14 +250,6 @@ export function CoursewareCreateFlow() {
             onConfirm={confirm}
             onCancel={handleRestart}
             onRetryHomework={retryHomework}
-            onPreviewPage={(pageId, title) => {
-              const page = task.generation?.pages.find((item) => item.id === pageId);
-              setPreview({
-                title,
-                partIndex: page?.partIndex ?? 1,
-                order: page?.order ?? 1,
-              });
-            }}
           />
         ) : null}
 

@@ -5,7 +5,27 @@
   --inspect-muted: #74777d;
   color: #26262c;
   font-size: 13px;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
   padding-bottom: 24px;
+}
+
+.inspection-workspace > .hidden + .hidden,
+.inspection-workspace > div:not(.inspection-toast) {
+  min-height: 0;
+  flex: 1;
+}
+
+.inspection-workspace > div:not(.inspection-toast):not(.hidden) {
+  display: flex;
+  flex-direction: column;
+}
+
+.inspection-workspace .audit-console-root {
+  min-height: 0;
+  height: 100%;
 }
 
 .inspection-workspace *,

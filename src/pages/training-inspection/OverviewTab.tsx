@@ -96,6 +96,12 @@ export function OverviewTab({
   onToast: (text: string) => void;
 }) {
   const latest = state.inspectionRuns.at(-1);
+  const savedSchedules = (state.auditSchedules ?? []).filter(
+    (schedule) => actor.hq || schedule.actorId === actor.id,
+  );
+  const savedRecords = (state.auditRecords ?? [])
+    .filter((record) => actor.hq || record.actorId === actor.id)
+    .slice(0, 4);
   const openRisks = uniqueRisks(
     risks.filter(
       (risk) =>
@@ -306,6 +312,53 @@ export function OverviewTab({
           <EmptyState title="还没有审计记录" hint="点右上角「立即审计」开始。" />
         )}
       </div>
+
+      {savedSchedules.length || savedRecords.length ? (
+        <div className="grid gap-3 rounded-xl bg-card px-3.5 py-3 ring-1 ring-foreground/10">
+          {savedRecords.length ? (
+            <div>
+              <div className="flex flex-wrap items-center justify-between gap-2 text-[12px]">
+                <span className="font-semibold text-foreground">已留痕的审计报告</span>
+                <span className="text-muted-foreground">结论与追踪 ID 已保存</span>
+              </div>
+              <div className="mt-2 grid gap-1.5">
+                {savedRecords.map((record) => (
+                  <div
+                    key={record.id}
+                    className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground"
+                  >
+                    <Chip tone={record.verdict === "阻断" ? "bg-rose-50 text-rose-700 ring-rose-200" : "bg-emerald-50 text-emerald-700 ring-emerald-200"}>
+                      {record.verdict}
+                    </Chip>
+                    <strong className="text-foreground">{record.reportTitle}</strong>
+                    <span>{jakartaStamp(record.createdAt)} · {record.findingCount} 条结论 · {record.actorName}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          {savedSchedules.length ? (
+            <div className={savedRecords.length ? "border-t border-border pt-3" : ""}>
+              <div className="flex flex-wrap items-center justify-between gap-2 text-[12px]">
+                <span className="font-semibold text-foreground">已保存的定时审计</span>
+                <span className="text-muted-foreground">由 ADM 调度 · Asia/Jakarta</span>
+              </div>
+              <div className="mt-2 grid gap-1.5">
+                {savedSchedules.map((schedule) => (
+                  <div
+                    key={schedule.id}
+                    className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground"
+                  >
+                    <Chip tone="bg-primary/10 text-primary ring-primary/25">启用</Chip>
+                    <strong className="text-foreground">每周一 09:00</strong>
+                    <span>{schedule.scopeLabel} · {schedule.focus} · 规则 {schedule.ruleVersion}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Metric

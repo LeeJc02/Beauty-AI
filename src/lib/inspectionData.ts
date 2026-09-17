@@ -825,6 +825,8 @@ export function createInspectionState(): InspectionState {
     exceptions: [],
     dispositions: [],
     inspectionRuns: [],
+    auditRecords: [],
+    auditSchedules: [],
     lastRunAt: null,
     sourceSyncedAt: {},
   };

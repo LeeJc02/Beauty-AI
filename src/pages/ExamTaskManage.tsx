@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/
 import { getProgressTone, getTaskStatusBadgeClass } from '../lib/visualTones';
 import { DEFAULT_EXAM_PASS_RULES, DEFAULT_EXAM_PROFILE_QUESTIONS, type DefaultExamProfileQuestion, type ExamPassRule } from '../lib/examPublishSettings';
 import { Bar, BarChart as RechartsBarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { DEMO_PREVIOUS_WEEK, demoDate, demoDateTime } from '../lib/demoDates';
 
 type TaskStatus = '待开始' | '考试中' | '考试结束待复核' | '复核结束';
 
@@ -16,6 +17,7 @@ export interface ExamTask {
   title: string;
   status: TaskStatus;
   publishTime: string;
+  deadline?: string;
   targetCount: number;
   submittedCount: number;
   aiGraded: boolean;
@@ -30,7 +32,8 @@ export const INITIAL_EXAM_TASKS: ExamTask[] = [
     id: 't1',
     title: 'Q3 新品知识通关考核 (2023)',
     status: '待开始',
-    publishTime: '2023-11-01 10:00',
+    publishTime: demoDateTime(0, '10:00'),
+    deadline: demoDate(6),
     targetCount: 1200,
     submittedCount: 0,
     aiGraded: false,
@@ -41,7 +44,8 @@ export const INITIAL_EXAM_TASKS: ExamTask[] = [
     id: 't2',
     title: '防晒季：夏日畅销单品销售话术',
     status: '考试中',
-    publishTime: '2023-10-15 00:00',
+    publishTime: demoDateTime(1, '00:00'),
+    deadline: demoDate(7),
     targetCount: 850,
     submittedCount: 421,
     aiGraded: false,
@@ -52,7 +56,8 @@ export const INITIAL_EXAM_TASKS: ExamTask[] = [
     id: 't3',
     title: '敏感肌护理基础：成分剖析与问答',
     status: '考试结束待复核',
-    publishTime: '2023-09-20 09:00',
+    publishTime: demoDateTime(-7, '09:00'),
+    deadline: DEMO_PREVIOUS_WEEK,
     targetCount: 500,
     submittedCount: 480,
     aiGraded: true,
@@ -63,7 +68,8 @@ export const INITIAL_EXAM_TASKS: ExamTask[] = [
     id: 't4',
     title: '春季妆容趋势与实操笔试',
     status: '复核结束',
-    publishTime: '2023-08-01 10:00',
+    publishTime: demoDateTime(-30, '10:00'),
+    deadline: demoDate(-15),
     targetCount: 1000,
     submittedCount: 980,
     aiGraded: true,

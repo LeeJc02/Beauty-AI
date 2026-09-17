@@ -6,6 +6,7 @@ import { Plus, BookOpen, Clock, Target, Calendar, CheckCircle2, ChevronRight, Fi
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { getProgressTone, getTaskStatusBadgeClass } from '../lib/visualTones';
 import { syncInspectionSource } from '../lib/inspectionStore';
+import { DEMO_PREVIOUS_WEEK, DEMO_WEEK, demoDate } from '../lib/demoDates';
 
 const MOCK_COURSES = [
   { id: 'c1', title: '双萃系列核心卖点解析（2023版）', duration: '15 mins' },
@@ -19,8 +20,8 @@ export const MOCK_STUDY_TASKS = [
     id: 'st1',
     title: '新人入职必修课第一期',
     status: '进行中',
-    publishTime: '2023-11-01',
-    deadline: '2023-11-30',
+    publishTime: DEMO_WEEK,
+    deadline: demoDate(6),
     target: '全国新入职满1个月BA',
     courses: ['c1', 'c3'],
     progress: 45,
@@ -32,8 +33,8 @@ export const MOCK_STUDY_TASKS = [
     id: 'st2',
     title: '秋冬防晒季全员冲刺培训',
     status: '已结束',
-    publishTime: '2023-09-01',
-    deadline: '2023-09-30',
+    publishTime: DEMO_PREVIOUS_WEEK,
+    deadline: demoDate(-2),
     target: '全国直营门店BA',
     courses: ['c2', 'c4'],
     progress: 92,
@@ -45,8 +46,8 @@ export const MOCK_STUDY_TASKS = [
     id: 'st3',
     title: '南区敏感肌专属话术突破',
     status: '进行中',
-    publishTime: '2023-11-15',
-    deadline: '2023-12-15',
+    publishTime: demoDate(2),
+    deadline: demoDate(20),
     target: '南区所有门店BA',
     courses: ['c2'],
     progress: 21,
@@ -298,7 +299,7 @@ export function StudyTaskManage({ isReadOnly = false, userRole }: { isReadOnly?:
                 title: '新建测试任务',
                 status: '进行中',
                 publishTime: new Date().toISOString().split('T')[0],
-                deadline: '2023-12-31',
+                deadline: demoDate(14),
                 target: '选中的人群',
                 courses: ['c1'],
                 progress: 0,

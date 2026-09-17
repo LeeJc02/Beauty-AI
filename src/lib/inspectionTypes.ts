@@ -148,6 +148,25 @@ export interface TaskResults {
   pushedAt: string | null;
 }
 
+/** 采集结果侧的独立事实：不能和任务状态、AI 分析状态、素材状态混成一个状态。 */
+export interface InspectionMediaFacts {
+  totalSubmissions: number;
+  enabledSubmissions: number;
+  disabledSubmissions: number;
+  analysisCompleted: number;
+  analysisProcessing: number;
+  analysisNeedsAttention: number;
+  analysisFailed: number;
+  activeMaterials: number;
+}
+
+export interface InspectionSourceFacts {
+  taskStatus?: string;
+  readOnly?: boolean;
+  resultAccess?: "MANAGE" | "SUMMARY" | "REVIEW";
+  media?: InspectionMediaFacts;
+}
+
 export interface InspectionTask {
   id: string;
   title: string;
@@ -156,6 +175,8 @@ export interface InspectionTask {
   categories: string[];
   origin: TaskOrigin;
   sourceId: string;
+  /** ADM 返回的结果侧事实，任务配置与媒体结果分层保存。 */
+  sourceFacts?: InspectionSourceFacts;
   status: TaskStatus;
   version: number;
   createdAt: string;
@@ -399,6 +420,47 @@ export interface InspectionRunOptions {
   roleLabel?: string;
 }
 
+/** Agent 汇报落库后的轻量快照；不复制原始任务与大表，只保留可追溯索引。 */
+export interface AuditRecord {
+  id: string;
+  question: string;
+  createdAt: string;
+  actorId: string;
+  actorName: string;
+  roleLabel: string;
+  weeks: string[];
+  scopeLabel: string;
+  focus: string;
+  categories: string[];
+  reportId: string;
+  reportTitle: string;
+  verdict: string;
+  findingCount: number;
+  taskCount: number;
+  ruleVersion: string;
+  traceIds: string[];
+}
+
+/** ADM 侧应落库的结构化定时条件；原型先持久化，后续由后端调度执行。 */
+export interface AuditSchedule {
+  id: string;
+  createdAt: string;
+  updatedAt: string;
+  actorId: string;
+  actorName: string;
+  roleLabel: string;
+  active: boolean;
+  cadence: "weekly";
+  weekday: 1;
+  time: "09:00";
+  timezone: "Asia/Jakarta";
+  weeks: string[];
+  scopeLabel: string;
+  focus: string;
+  categories: string[];
+  ruleVersion: string;
+}
+
 export interface InspectionState {
   schema: 2;
   /** 演示数据版本；升级后本地旧快照会自动重新载入演示数据。 */
@@ -414,6 +476,10 @@ export interface InspectionState {
   dispositions: DispositionRecord[];
   /** 审计工作记录：按批次记录审计了哪些任务、发现了什么。 */
   inspectionRuns: InspectionRunRecord[];
+  /** Agent 汇报动作生成的独立审计记录。 */
+  auditRecords: AuditRecord[];
+  /** Agent 保存的结构化定时审计条件。 */
+  auditSchedules: AuditSchedule[];
   lastRunAt: string | null;
   sourceSyncedAt: Record<string, string>;
 }

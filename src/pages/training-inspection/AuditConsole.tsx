@@ -51,6 +51,8 @@ import {
 } from "../../lib/auditTools";
 import { LEVEL_LABELS } from "../../lib/inspectionEngine";
 import type {
+  AuditRecord,
+  AuditSchedule,
   InspectionActor,
   InspectionState,
   RiskLevel,
@@ -92,7 +94,7 @@ type ConsoleItem =
   | { kind: "agent"; id: string; text: string; event?: string; tone?: "note" | "confirm" | "error" }
   | ClarifyItem
   | TrailItem
-  | { kind: "report"; id: string; report: AuditReport; ctx: AuditContext };
+  | { kind: "report"; id: string; report: AuditReport; ctx: AuditContext; question: string };
 
 const uid = () => `audit-${Math.random().toString(36).slice(2, 9)}`;
 
@@ -770,6 +772,8 @@ export function AuditConsole({
   onFocusTask,
   onToast,
   onOpenArchive,
+  onSaveAuditRecord,
+  onSaveAuditSchedule,
 }: {
   state: InspectionState;
   actor: InspectionActor;
@@ -779,11 +783,16 @@ export function AuditConsole({
   onToast: (text: string) => void;
   /** 跳到「审计档案」（指标、审计记录、区域工时等留档视图）。 */
   onOpenArchive?: () => void;
+  /** 把 Agent 的“保存”动作交给页面容器，统一写入审计状态。 */
+  onSaveAuditRecord?: (record: AuditRecord) => void;
+  onSaveAuditSchedule?: (schedule: AuditSchedule) => void;
 }) {
   const [items, setItems] = useState<ConsoleItem[]>([]);
   const [input, setInput] = useState("");
   const [entryText, setEntryText] = useState("");
   const [running, setRunning] = useState(false);
+  const [savedRecordId, setSavedRecordId] = useState<string | null>(null);
+  const [savedScheduleId, setSavedScheduleId] = useState<string | null>(null);
   const [entered, setEntered] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const [mobileTab, setMobileTab] = useState<"chat" | "context">("chat");
@@ -862,7 +871,7 @@ export function AuditConsole({
   );
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    if (items.length) endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [items]);
 
   useEffect(
@@ -940,7 +949,13 @@ export function AuditConsole({
         text: "查完了，先给结论：",
         event: "report_completed",
       });
-      push({ kind: "report", id: uid(), report: buildAuditReport(current, ctx), ctx });
+      push({
+        kind: "report",
+        id: uid(),
+        report: buildAuditReport(current, ctx),
+        ctx,
+        question,
+      });
       runningRef.current = false;
       setRunning(false);
     },
@@ -984,11 +999,77 @@ export function AuditConsole({
       if (token !== runRef.current) return;
       const output = runAuditTool(id, current, ctx, question);
       patch({ ...step, status: "done", output });
+
+      // 报告卡上的动作必须真正进入审计状态；否则刷新后会出现“已保存”但记录消失的断链。
+      const now = new Date().toISOString();
+      if (id === "save_inspection_record") {
+        const report = latestReport?.report ?? buildAuditReport(current, ctx);
+        const record: AuditRecord = {
+          id: `audit-record-${Date.now()}`,
+          question: question ?? latestReport?.question ?? "本次数据审计",
+          createdAt: now,
+          actorId: currentActor.id,
+          actorName: currentActor.name,
+          roleLabel: currentActor.roleLabel,
+          weeks: [...ctx.weeks],
+          scopeLabel: ctx.scopeLabel,
+          focus: ctx.focus,
+          categories: [...ctx.categories],
+          reportId: report.id,
+          reportTitle: report.title,
+          verdict: report.verdict,
+          findingCount: report.findings.length,
+          taskCount: current.tasks.filter((task) => task.status !== "disabled").length,
+          ruleVersion: report.ruleVersion,
+          traceIds: [
+            ...new Set([
+              ...trails.flatMap((trail) =>
+                trail.steps.flatMap((trailStep) =>
+                  trailStep.output ? [trailStep.output.traceId] : [],
+                ),
+              ),
+              output.traceId,
+            ]),
+          ],
+        };
+        onSaveAuditRecord?.(record);
+        setSavedRecordId(record.id);
+      }
+      if (id === "save_schedule") {
+        const existing = (current.auditSchedules ?? []).find(
+          (schedule) =>
+            schedule.actorId === currentActor.id &&
+            schedule.scopeLabel === ctx.scopeLabel &&
+            schedule.focus === ctx.focus &&
+            schedule.categories.join(",") === ctx.categories.join(","),
+        );
+        const schedule: AuditSchedule = {
+          id: existing?.id ?? `audit-schedule-${Date.now()}`,
+          createdAt: existing?.createdAt ?? now,
+          updatedAt: now,
+          actorId: currentActor.id,
+          actorName: currentActor.name,
+          roleLabel: currentActor.roleLabel,
+          active: true,
+          cadence: "weekly",
+          weekday: 1,
+          time: "09:00",
+          timezone: "Asia/Jakarta",
+          weeks: [...ctx.weeks],
+          scopeLabel: ctx.scopeLabel,
+          focus: ctx.focus,
+          categories: [...ctx.categories],
+          ruleVersion: current.policy.version.toString(),
+        };
+        onSaveAuditSchedule?.(schedule);
+        setSavedScheduleId(schedule.id);
+      }
+
       runningRef.current = false;
       setRunning(false);
       onToast(`${spec.title}完成：${output.headline}`);
     },
-    [push, onToast],
+    [latestReport, onSaveAuditRecord, onSaveAuditSchedule, onToast, push, trails],
   );
 
   const pushPermissionError = useCallback(
@@ -1181,10 +1262,8 @@ export function AuditConsole({
   const startAudit = async (raw: string) => {
     const question = raw.trim();
     if (!question) return;
-    setLeaving(true);
-    await sleep(680);
+    // 左侧交互台始终保留，只把内容从入口平滑切换为对话流；右侧产物独立换场。
     setEntered(true);
-    setLeaving(false);
     await ask(question);
   };
 
@@ -1194,6 +1273,8 @@ export function AuditConsole({
     setRunning(false);
     setPending(null);
     setItems([]);
+    setSavedRecordId(null);
+    setSavedScheduleId(null);
     setEntered(false);
     setEntryText("");
     setInput("");
@@ -1270,94 +1351,10 @@ export function AuditConsole({
     onToast(`报告已导出：${fileName}（浏览器默认下载目录）。`);
   };
 
-  /* ------------------------------------------------------------ 初始简卡 */
-
-  if (!entered)
-    return (
-      <div className="cw-root" data-i18n-skip="true">
-        <div className={`cw-entry-flow ${leaving ? "cw-swap-out" : "cw-swap-in"}`}>
-          <div className="cw-entry-card audit-entry-card">
-            <div className="audit-entry-body">
-              <span className="cw-entry-badge">
-                <ShieldCheck size={14} /> 数据审计 Agent
-              </span>
-              <h1 className="audit-entry-title">想问什么，直接说。</h1>
-              <p className="audit-entry-hint">
-                我会先跟你确认查什么、哪个范围、哪段时间，再去取数，最后给你一段带数据出处的汇报。
-              </p>
-              <textarea
-                className="cw-textarea"
-                style={{ minHeight: 88 }}
-                value={entryText}
-                onChange={(event) => setEntryText(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" && !event.shiftKey) void startAudit(entryText);
-                }}
-                placeholder="例如：最近培训情况怎么样？哪个区域工时压力最大？"
-              />
-              <div className="audit-entry-examples">
-                <span className="cw-entry-examples-label">
-                  <Sparkles size={13} /> 可以这样问:
-                </span>
-                {AUDIT_PRESETS.map((preset) => (
-                  <button
-                    key={preset.id}
-                    type="button"
-                    className="cw-entry-example-btn"
-                    title={preset.hint}
-                    onClick={() => void startAudit(preset.question)}
-                  >
-                    {preset.label}
-                    <ArrowRight size={12} />
-                  </button>
-                ))}
-              </div>
-              <div className="audit-entry-roadmap">
-                <span>① 你说一句</span>
-                <span>② 我确认口径</span>
-                <span>③ 取数后给你汇报</span>
-              </div>
-              <div className="audit-entry-actions">
-                <div className="audit-card__head">
-                  <Chip>
-                    <Database size={11} /> {baseCtx.scopeLabel}
-                  </Chip>
-                  <Chip>周期 {week.slice(5)}</Chip>
-                  <Chip tone="audit-chip--accent">
-                    <Wrench size={11} /> {AUDIT_TOOL_LIST.length} 个白名单工具
-                  </Chip>
-                </div>
-                <div className="audit-actions">
-                  {onOpenArchive ? (
-                    <button
-                      type="button"
-                      className="cw-ghost"
-                      onClick={onOpenArchive}
-                      title="看指标、历史审计记录、区域工时等留档"
-                    >
-                      <Archive size={13} /> 先看审计档案
-                    </button>
-                  ) : null}
-                  <button
-                    type="button"
-                    className="cw-primary"
-                    disabled={!entryText.trim() || leaving}
-                    onClick={() => void startAudit(entryText)}
-                  >
-                    <Sparkles size={15} /> 开始审计 <ArrowRight size={15} />
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-
   /* ------------------------------------------------------------ 工作台 */
 
   return (
-    <div className="cw-root" data-i18n-skip="true">
+    <div className="cw-root audit-console-root" data-i18n-skip="true">
       <div className={`studio ${leaving ? "cw-swap-out" : "cw-swap-in"}`}>
         <header className="studio__header">
           <div className="studio__header-left">
@@ -1392,7 +1389,15 @@ export function AuditConsole({
           <div className="studio__header-right">
             <span className={`studio__saved ${running ? "is-busy" : ""}`}>
               {running ? <Loader2 size={13} className="cw-spin" /> : <ShieldCheck size={13} />}
-              {running ? "执行中" : "结论已留痕"}
+              {running
+                ? "执行中"
+                : savedRecordId
+                  ? "结论已留痕"
+                  : savedScheduleId
+                    ? "定时已保存"
+                    : latestReport
+                      ? "待保存"
+                      : "等待提问"}
             </span>
             {onOpenArchive ? (
               <button type="button" className="cw-ghost" onClick={onOpenArchive}>
@@ -1444,7 +1449,35 @@ export function AuditConsole({
             </div>
 
             <div className="audit-thread" ref={listRef}>
-              {items.map((item) => {
+              {!entered ? (
+                <div className="audit-entry-inline">
+                  <span className="cw-entry-badge"><ShieldCheck size={14} /> 数据审计 Agent</span>
+                  <h1>想问什么，直接说。</h1>
+                  <p>我会先跟你确认查什么、哪个范围、哪段时间，再去取数，最后给你一段带数据出处的汇报。</p>
+                  <textarea
+                    className="cw-textarea"
+                    value={entryText}
+                    onChange={(event) => setEntryText(event.target.value)}
+                    onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) void startAudit(entryText); }}
+                    placeholder="例如：最近培训情况怎么样？哪个区域工时压力最大？"
+                  />
+                  <div className="audit-entry-examples">
+                    <span className="cw-entry-examples-label"><Sparkles size={13} /> 可以这样问:</span>
+                    {AUDIT_PRESETS.map((preset) => (
+                      <button key={preset.id} type="button" className="cw-entry-example-btn" onClick={() => void startAudit(preset.question)}>
+                        {preset.label}<ArrowRight size={12} />
+                      </button>
+                    ))}
+                  </div>
+                  <div className="audit-entry-actions">
+                    <div className="audit-card__head"><Chip><Database size={11} /> {baseCtx.scopeLabel}</Chip><Chip>周期 {week.slice(5)}</Chip></div>
+                    <button type="button" className="cw-primary" disabled={!entryText.trim() || leaving} onClick={() => void startAudit(entryText)}>
+                      <Sparkles size={15} /> 开始审计 <ArrowRight size={15} />
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+              {entered ? items.map((item) => {
                 if (item.kind === "user")
                   return (
                     <div key={item.id} className="audit-user-bubble">
@@ -1529,7 +1562,7 @@ export function AuditConsole({
                     </div>
                   </div>
                 );
-              })}
+              }) : null}
               <div ref={endRef} />
             </div>
 
@@ -1587,7 +1620,10 @@ export function AuditConsole({
               </div>
               <span className="studio__canvas-badge">只读</span>
             </header>
-            <div className="studio__document">
+            <div
+              key={`${entered ? "entered" : "welcome"}-${latestReport?.report.id ?? dataPoints.length}`}
+              className="studio__document audit-artifact-stage"
+            >
               <div className="audit-rail-block">
                 <span className="audit-section-title">这次查了什么</span>
                 <div className="audit-rail-row">

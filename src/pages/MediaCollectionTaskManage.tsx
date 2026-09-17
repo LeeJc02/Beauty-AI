@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { syncInspectionSource } from '../lib/inspectionStore';
+import { syncInspectionSource, toMediaInspectionTask } from '../lib/inspectionStore';
 import {
   AlertCircle,
   BarChart3,
@@ -237,7 +237,14 @@ export function MediaCollectionTaskManage({ userRole, onOpenMaterialAsset }: Med
   const isRegional = userRole === 'Regional Training Manager' || userRole === 'Regional Trainer' || userRole === 'Regional Manager';
   const audiences = AUDIENCES_BY_ROLE[isRegional ? 'regional' : 'national'];
   const [tasks, setTasks] = useState<MediaCollectionTask[]>(initialTasks);
-  React.useEffect(() => { syncInspectionSource('media', 'media_collection_manage', tasks); }, [tasks]);
+  React.useEffect(() => {
+    // 审计接收 ADM 结果侧的独立事实：任务状态、提交可用性与 AI 分析状态分开传递。
+    syncInspectionSource(
+      'media',
+      'media_collection_manage',
+      tasks.map(toMediaInspectionTask),
+    );
+  }, [tasks]);
   const [selectedTaskId, setSelectedTaskId] = useState(initialTasks[0].id);
   const [statusFilter, setStatusFilter] = useState<'全部' | '进行中' | '已结束'>('全部');
   const [search, setSearch] = useState('');

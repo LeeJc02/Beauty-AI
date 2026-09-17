@@ -39,6 +39,8 @@ import {
   useInspectionState,
 } from "../lib/inspectionStore";
 import type {
+  AuditRecord,
+  AuditSchedule,
   DispositionAction,
   DispositionInput,
   InspectionRisk,
@@ -330,6 +332,22 @@ export function TrainingInspection({
               `${record.id} ${record.at.slice(0, 16).replace("T", " ")} ${record.actorName} ${ACTION_LABELS[record.action]} ${record.taskTitle} v${record.taskVersionBefore}→v${record.taskVersionAfter}：${record.reason}｜预期影响 ${record.expectedImpact}｜复查 ${record.recheck.summary}`,
           )
         : ["暂无处置记录"]),
+      "",
+      `七、Agent 审计报告留痕`,
+      ...(state.auditRecords?.length
+        ? state.auditRecords.map(
+            (record) =>
+              `${record.createdAt.slice(0, 16).replace("T", " ")} ${record.reportTitle}（${record.verdict}）· ${record.actorName} · ${record.findingCount} 条结论 · trace ${record.traceIds.join(",")}`,
+          )
+        : ["暂无 Agent 报告留痕"]),
+      "",
+      `八、定时审计条件`,
+      ...(state.auditSchedules?.length
+        ? state.auditSchedules.map(
+            (schedule) =>
+              `${schedule.active ? "启用" : "停用"} · 每周一 ${schedule.time} ${schedule.timezone} · ${schedule.scopeLabel} · ${schedule.focus} · 规则 ${schedule.ruleVersion}`,
+          )
+        : ["暂无定时审计条件"]),
     ];
     const url = URL.createObjectURL(
       new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" }),
@@ -361,6 +379,26 @@ export function TrainingInspection({
           onFocusTask={focusTask}
           onToast={setMessage}
           onOpenArchive={() => setView("archive")}
+          onSaveAuditRecord={(record: AuditRecord) => {
+            setInspectionState((previous) => ({
+              ...previous,
+              revision: previous.revision + 1,
+              auditRecords: [
+                record,
+                ...(previous.auditRecords ?? []).filter((item) => item.id !== record.id),
+              ].slice(0, 60),
+            }));
+          }}
+          onSaveAuditSchedule={(schedule: AuditSchedule) => {
+            setInspectionState((previous) => ({
+              ...previous,
+              revision: previous.revision + 1,
+              auditSchedules: [
+                schedule,
+                ...(previous.auditSchedules ?? []).filter((item) => item.id !== schedule.id),
+              ].slice(0, 20),
+            }));
+          }}
         />
       </div>
 

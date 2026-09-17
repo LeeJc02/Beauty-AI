@@ -24,7 +24,7 @@ import { ExamTaskManage, INITIAL_EXAM_TASKS, type ExamTask } from './pages/ExamT
 import { StudyTaskManage, MOCK_STUDY_TASKS } from './pages/StudyTaskManage';
 import { PracticeTaskManage, MOCK_PRACTICE_TASKS } from './pages/PracticeTaskManage';
 import { TrainingInspection } from './pages/TrainingInspection';
-import { getInspectionState, startInspectionScheduler, syncInspectionSource } from './lib/inspectionStore';
+import { getInspectionState, startInspectionScheduler, syncInspectionSource, toMediaInspectionTask } from './lib/inspectionStore';
 import { MediaCollectionTaskManage, initialTasks as INITIAL_MEDIA_TASKS } from './pages/MediaCollectionTaskManage';
 import { PhotoCheckinRecords } from './pages/PhotoCheckinRecords';
 import { MaterialLibrary } from './pages/MaterialLibrary';
@@ -62,10 +62,10 @@ export default function App() {
   }, [activeTab]);
 
   React.useEffect(() => {
-    const state = getInspectionState();
-    if (!state.sourceSyncedAt.study) syncInspectionSource('study', 'study_task_manage', MOCK_STUDY_TASKS);
-    if (!state.sourceSyncedAt.practice) syncInspectionSource('practice', 'practice_task_manage', MOCK_PRACTICE_TASKS);
-    if (!state.sourceSyncedAt.media) syncInspectionSource('media', 'media_collection_manage', INITIAL_MEDIA_TASKS);
+    // 每次启动都用当前任务快照做幂等同步；不能只看 sourceSyncedAt，否则不打开原任务页就会读到旧审计数据。
+    syncInspectionSource('study', 'study_task_manage', MOCK_STUDY_TASKS);
+    syncInspectionSource('practice', 'practice_task_manage', MOCK_PRACTICE_TASKS);
+    syncInspectionSource('media', 'media_collection_manage', INITIAL_MEDIA_TASKS.map(toMediaInspectionTask));
     return startInspectionScheduler();
   }, []);
   React.useEffect(() => { syncInspectionSource('exam', 'exam_task_manage', examTasks); }, [examTasks]);
