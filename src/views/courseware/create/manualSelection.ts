@@ -13,7 +13,10 @@ export function withManualSelectionPayload<T extends Record<string, unknown>>(
   payload: T,
   enabled: boolean,
   selection: CoursewareManualSelection
-): T & { manualSelectionEnabled: boolean; generationOptions?: CoursewareGenerationOptionsVO } {
+): Omit<T, keyof CoursewareManualSelection> & {
+  manualSelectionEnabled: boolean
+  generationOptions?: CoursewareGenerationOptionsVO
+} {
   if (!enabled) {
     const {
       generateHomeworkSync,
@@ -26,9 +29,7 @@ export function withManualSelectionPayload<T extends Record<string, unknown>>(
     void enableImageGeneration
     void outlineEnhancementEnabled
     void documentProcessingMode
-    // Omit<> 去掉键后的对象无法被 TS 证明就是泛型 T（T 可能是更窄的子类型），这里显式收口。
-    // 运行时返回值与原型完全一致：只少掉被剥离的四个手动参数。
-    return { ...(safePayload as T), manualSelectionEnabled: false }
+    return { ...safePayload, manualSelectionEnabled: false }
   }
   return {
     ...payload,

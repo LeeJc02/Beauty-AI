@@ -75,20 +75,31 @@
           <Icon icon="lucide:plus" class="mr-1.5 h-3.5 w-3.5" />
           {{ t('coursewareCreate.catalog.addBrand') }}
         </el-button>
-        <div v-if="addTarget" class="brand-catalog-add">
-          <span class="brand-catalog-add__target">{{ addTarget.label }}</span>
-          <el-input
-            v-model="newName"
-            :placeholder="t('coursewareCreate.catalog.addPlaceholder')"
-            @keyup.enter="submitAdd"
-          />
-          <div class="brand-catalog-add__actions">
-            <el-button size="small" @click="cancelAdd">{{ t('common.cancel') }}</el-button>
-            <el-button size="small" type="primary" :loading="saving" @click="submitAdd">
-              {{ t('action.add') }}
-            </el-button>
+        <el-dialog
+          :model-value="!!addTarget"
+          :title="addTarget?.label"
+          width="min(440px, calc(100vw - 32px))"
+          append-to-body
+          align-center
+          :close-on-click-modal="false"
+          :before-close="beforeClose"
+          @update:model-value="cancelAdd"
+        >
+          <div v-if="addTarget" class="brand-catalog-add">
+            <span class="brand-catalog-add__target">{{ addTarget.label }}</span>
+            <el-input
+              v-model="newName"
+              :placeholder="t('coursewareCreate.catalog.addPlaceholder')"
+              @keyup.enter="submitAdd"
+            />
+            <div class="brand-catalog-add__actions">
+              <el-button size="small" @click="cancelAdd">{{ t('common.cancel') }}</el-button>
+              <el-button size="small" type="primary" :loading="saving" @click="submitAdd">
+                {{ t('action.add') }}
+              </el-button>
+            </div>
           </div>
-        </div>
+        </el-dialog>
       </div>
       <template #footer>
         <el-button :disabled="saving" @click="visible = false">{{ t('common.close') }}</el-button>

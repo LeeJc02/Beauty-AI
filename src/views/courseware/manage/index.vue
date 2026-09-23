@@ -745,8 +745,9 @@ const handleSortCommand = (command: string) => {
 }
 
 const goCreate = async () => {
+  const context = generationStore.captureTaskContext()
   const activeTask = await CoursewareApi.getActiveGenerationTask()
-  generationStore.setTask(activeTask)
+  if (!generationStore.setTask(activeTask, context)) return
   if (activeTask?.id) {
     router.push({ name: 'CoursewareCreate', query: { taskId: activeTask.id } })
     return

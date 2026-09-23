@@ -330,6 +330,7 @@
                     <el-tree-select
                       v-model="selectedCatalogKeys"
                       :data="catalogTree"
+                      popper-class="courseware-catalog-dropdown"
                       node-key="value"
                       multiple
                       show-checkbox
@@ -342,7 +343,14 @@
                       collapse-tags-tooltip
                       :placeholder="t('coursewareCreate.catalogPlaceholder')"
                       @visible-change="handleCatalogVisibleChange"
-                    />
+                    >
+                      <template #default="{ data }">
+                        <span class="courseware-catalog-option">
+                          <Icon :icon="data.value.startsWith('BRAND:') ? 'lucide:badge' : data.value.startsWith('PRODUCT:') ? 'lucide:package' : 'lucide:folder'" :size="15" />
+                          <span>{{ data.label }}</span>
+                        </span>
+                      </template>
+                    </el-tree-select>
                     <BrandCatalogPopover
                       :language="formData.language"
                       @refreshed="loadCatalogOptions"
@@ -1299,6 +1307,7 @@ const canRetryHomework = computed(
 const handleRetryHomework = async () => {
   const task = generationStore.task
   if (!task?.resultCoursewareId || !canRetryHomework.value) return
+  const context = generationStore.captureTaskContext()
   await ElMessageBox.confirm(
     t('coursewareCreate.retryHomeworkConfirm'),
     t('coursewareCreate.retryHomeworkButton'),
@@ -1308,10 +1317,12 @@ const handleRetryHomework = async () => {
       type: 'warning'
     }
   )
+  if (!generationStore.isTaskContextCurrent(context)) return
   const retryTask = await CoursewareApi.regenerateHomework({
     coursewareId: task.resultCoursewareId,
     generationTaskId: task.id
   })
+  if (!generationStore.isTaskContextCurrent(context)) return
   message.success(t('coursewareCreate.retryHomeworkSubmitted'))
   // 练习重试沿用父生成任务。接口返回的旧快照可能因运行时序列化而暂时不带页面，
   // 因此在新结果可用前始终保留当前页面和系列信息，避免右侧工作区被清空。
@@ -1332,7 +1343,7 @@ const handleRetryHomework = async () => {
     generation: mergedGeneration,
     series: mergedSeries,
     result: retryTask.result || task.result
-  })
+  }, context)
 }
 const generationButtonText = computed(() => {
   if (uploadingCount.value > 0) return t('coursewareCreate.uploadingButton')
@@ -1881,11 +1892,13 @@ const handleStartGeneration = async () => {
   step.value = 2
   previewUrl.value = ''
   generationStore.clear()
+  const context = generationStore.captureTaskContext()
   try {
     const task = await CoursewareApi.createGenerationTask(buildRequest())
-    generationStore.setTask(task)
+    if (!generationStore.setTask(task, context)) return
     await handleGenerationCompletion()
   } catch {
+    if (!generationStore.isTaskContextCurrent(context)) return
     generationStore.clear()
     step.value = 1
     message.error(t('coursewareGeneration.networkRetryLater'))
@@ -2110,6 +2123,7 @@ const applyTaskResultState = async (task?: CoursewareGenerationTaskVO) => {
     return
   }
 
+  generationStore.acknowledgeResult(task?.id)
   const resultState = resolveCoursewareTaskResult(task, {
     seriesId: route.query.seriesId as any,
     currentPart: route.query.currentPart as any
@@ -2149,10 +2163,12 @@ const handleSubmitWaitingAnswers = async (
   const taskId = generationStore.task?.id
   if (!taskId || answeringTask.value) return
   answeringTask.value = true
+  const context = generationStore.captureTaskContext()
   try {
     const updated = await CoursewareApi.answerGenerationTask({ id: taskId, answers })
-    generationStore.setTask(updated)
+    generationStore.setTask(updated, context)
   } catch (error) {
+    if (!generationStore.isTaskContextCurrent(context)) return
     message.error(
       error instanceof Error ? error.message : t('coursewareCreate.submitAnswersFailed')
     )
@@ -2165,14 +2181,16 @@ const handleConfirmStudio = async (edits: CoursewareStudioConfirmation) => {
   const taskId = generationStore.task?.id
   if (!taskId || confirmingTask.value) return
   confirmingTask.value = true
+  const context = generationStore.captureTaskContext()
   try {
     const updated = await CoursewareApi.confirmGenerationTask({
       id: taskId,
       confirmed: true,
       ...edits
     })
-    generationStore.setTask(updated)
+    generationStore.setTask(updated, context)
   } catch (error) {
+    if (!generationStore.isTaskContextCurrent(context)) return
     confirmationFailureRevision.value += 1
     message.error(
       error instanceof Error ? error.message : t('coursewareCreate.submitConfirmationFailed')
@@ -2385,7 +2403,9 @@ const openActiveTask = async () => {
     clearPreviewResultState()
     previewCoursewareId.value = undefined
     previewCoursewareStatus.value = undefined
-    generationStore.setTask(await CoursewareApi.getGenerationTask(taskId))
+    const context = generationStore.captureTaskContext()
+    const task = await CoursewareApi.getGenerationTask(taskId)
+    if (!generationStore.setTask(task, context)) return
     restoreGenerationLanguageFromTask()
     if (waitingQuestions.value.length) {
       return
@@ -2730,6 +2750,28 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+/* 下拉挂载到 body，必须使用全局选择器，不能依赖入口卡片后代关系。 */
+:global(.courseware-catalog-dropdown) {
+  padding: 8px;
+  border: 1px solid #e8ded8;
+  border-radius: 14px;
+  box-shadow: 0 12px 32px rgb(60 40 30 / 12%);
+}
+:global(.courseware-catalog-dropdown .el-tree-node__content) {
+  height: 36px;
+  margin: 2px 0;
+  border-radius: 7px;
+}
+:global(.courseware-catalog-dropdown .el-tree-node__content:hover) {
+  background: #faf3ef;
+}
+.courseware-catalog-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #625650;
+  font-size: 13px;
+}
 .studio-entry-identity {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
@@ -2790,10 +2832,13 @@ onBeforeUnmount(() => {
   margin: 0 auto;
 }
 .courseware-create-flow {
-  flex: 1;
+  flex: 1 1 auto;
   min-height: 0;
+  max-height: 100%;
   display: flex;
   flex-direction: column;
+  overflow: auto;
+  box-sizing: border-box;
   /* 居中方式固定在基类：阶段切换时只换尺寸类名，对齐方式不变，
      初始卡片才能在原位淡出，而不是先被挤到左侧。 */
   align-items: center;
@@ -2803,6 +2848,7 @@ onBeforeUnmount(() => {
   flex: 0 1 auto;
   width: min(100%, 1120px);
   max-height: 100%;
+  box-sizing: border-box;
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -2945,7 +2991,7 @@ onBeforeUnmount(() => {
   flex-wrap: wrap;
   align-items: center;
   gap: 8px 10px;
-  padding: 12px 0 18px;
+  padding: 4px 0 6px;
 }
 .studio-entry-examples-label {
   display: inline-flex;
@@ -3067,8 +3113,9 @@ onBeforeUnmount(() => {
 }
 
 .courseware-asset-page {
-  flex: 1;
+  flex: 1 1 auto;
   min-height: 0;
+  height: 100%;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -3810,14 +3857,14 @@ onBeforeUnmount(() => {
 }
 .studio-entry-examples {
   gap: 6px;
-  margin-top: 12px;
+  margin-top: 8px;
 }
 .studio-entry-examples-label {
   width: 100%;
   margin-bottom: 0;
 }
 .studio-entry-types {
-  margin: 12px 0 10px;
+  margin: 8px 0 6px;
 }
 .studio-entry-type-chip {
   min-height: 40px;
@@ -3872,6 +3919,33 @@ onBeforeUnmount(() => {
     transform: none;
   }
 }
+@media (min-width: 769px) and (max-height: 900px) {
+  .courseware-create-flow {
+    justify-content: flex-start;
+    padding-block: 12px;
+  }
+  .studio-entry-card .studio-entry-layout {
+    padding: clamp(16px, 3vh, 28px) clamp(20px, 3vw, 36px);
+    gap: clamp(20px, 3vw, 36px);
+  }
+  .studio-entry-editor :deep(.el-textarea__inner) {
+    min-height: clamp(96px, 16vh, 150px) !important;
+  }
+  .studio-entry-intro {
+    margin-bottom: clamp(18px, 3vh, 32px);
+  }
+  .studio-entry-intro h1 {
+    font-size: clamp(28px, 4vh, 36px);
+    margin-block: 10px 14px;
+  }
+  .studio-entry-roadmap {
+    gap: clamp(12px, 2vh, 20px);
+  }
+  .studio-entry-actions {
+    margin-top: clamp(12px, 2vh, 20px);
+  }
+}
+
 @media (min-width: 1001px) and (max-height: 850px) {
   .studio-entry-card .studio-entry-layout {
     padding: 20px 32px;
@@ -3894,7 +3968,7 @@ onBeforeUnmount(() => {
     gap: 16px;
   }
   .studio-entry-types {
-    margin: 14px 0 4px;
+    margin: 8px 0 4px;
   }
   .studio-entry-file-label {
     margin-top: 12px;
@@ -3981,6 +4055,28 @@ onBeforeUnmount(() => {
   .cw-swap-leave-active {
     animation: none !important;
     transition: none !important;
+  }
+}
+</style>
+
+<style lang="scss">
+/* 矮笔记本窗口：隐藏非交互性的流程说明，给真正的编辑控件留空间。 */
+@media (min-width: 769px) and (max-height: 700px) {
+  .studio-entry-card .studio-entry-layout {
+    align-items: start;
+    padding-block: 20px;
+  }
+  .studio-entry-story .studio-entry-intro {
+    margin-bottom: 16px;
+  }
+  .studio-entry-story .studio-entry-roadmap {
+    display: none;
+  }
+  .studio-entry-editor :deep(.el-textarea__inner) {
+    min-height: 96px !important;
+  }
+  .studio-entry-actions {
+    margin-top: 12px;
   }
 }
 </style>

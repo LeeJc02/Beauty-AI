@@ -145,6 +145,7 @@ describe('read/add-only catalog dialog', () => {
     root.querySelector<HTMLButtonElement>('.brand-catalog-new-brand')!.click()
     await nextTick()
     expect(root.querySelector('input')).not.toBeNull()
+    expect(root.querySelectorAll('[role="dialog"]')).toHaveLength(2)
     root.querySelector<HTMLButtonElement>('.close')!.click()
     await settle()
     root.querySelector<HTMLButtonElement>('.brand-catalog-trigger')!.click()

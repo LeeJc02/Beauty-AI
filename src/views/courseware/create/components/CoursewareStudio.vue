@@ -192,148 +192,154 @@
                 </div>
               </div>
             </div>
-            <div :key="key" class="studio__current" :aria-busy="busy">
-              <template v-if="waitingForUser">
-                <div class="studio__coach-bubble-wrap">
-                  <div class="studio__bubble-avatar">
-                    <Icon icon="lucide:sparkles" :size="13" />
-                  </div>
-                  <div class="studio__bubble-content">
-                    <div class="studio__speaker">
-                      <span>{{ s('coachRole') }}</span>
+            <Transition name="studio-question-round" mode="out-in">
+              <div :key="key" class="studio__current" :aria-busy="busy">
+                <template v-if="waitingForUser">
+                  <div class="studio__coach-bubble-wrap">
+                    <div class="studio__bubble-avatar">
+                      <Icon icon="lucide:sparkles" :size="13" />
                     </div>
-                    <p class="studio__message">{{
-                      task?.promptEnhancement?.message || s('interviewIntro')
-                    }}</p>
-                  </div>
-                </div>
-                <form id="studio-answer" class="studio__form" @submit.prevent="submitAnswers">
-                  <fieldset
-                    v-for="question in questions"
-                    :key="question.id"
-                    :disabled="busy"
-                    class="studio__question"
-                    :aria-labelledby="`studio-question-${question.id}`"
-                  >
-                    <div class="studio__question-card">
-                      <div class="studio__question-header">
-                        <span class="studio__question-badge">
-                          <Icon icon="lucide:help-circle" :size="15" />
-                        </span>
-                        <h3 :id="`studio-question-${question.id}`" class="studio__question-title">{{
-                          question.question
-                        }}</h3>
+                    <div class="studio__bubble-content">
+                      <div class="studio__speaker">
+                        <span>{{ s('coachRole') }}</span>
                       </div>
-                      <div v-if="question.reason" class="studio__why">
-                        <Icon icon="lucide:lightbulb" :size="14" class="studio__why-icon" />
-                        <div class="studio__why-content">
-                          <strong>{{ s('rationaleLabel') }}:</strong>
-                          <span>{{ question.reason }}</span>
+                      <p class="studio__message">{{
+                        task?.promptEnhancement?.message || s('interviewIntro')
+                      }}</p>
+                    </div>
+                  </div>
+                  <form id="studio-answer" class="studio__form" @submit.prevent="submitAnswers">
+                    <fieldset
+                      v-for="question in questions"
+                      :key="question.id"
+                      :disabled="busy"
+                      class="studio__question"
+                      :aria-labelledby="`studio-question-${question.id}`"
+                    >
+                      <div class="studio__question-card">
+                        <div class="studio__question-header">
+                          <span class="studio__question-badge">
+                            <Icon icon="lucide:help-circle" :size="15" />
+                          </span>
+                          <h3
+                            :id="`studio-question-${question.id}`"
+                            class="studio__question-title"
+                            >{{ question.question }}</h3
+                          >
+                        </div>
+                        <div v-if="question.reason" class="studio__why">
+                          <Icon icon="lucide:lightbulb" :size="14" class="studio__why-icon" />
+                          <div class="studio__why-content">
+                            <strong>{{ s('rationaleLabel') }}:</strong>
+                            <span>{{ question.reason }}</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <div class="studio__options">
-                      <label
-                        v-for="option in question.options?.filter((item) => item.id !== 'none')"
-                        :key="option.id"
-                        class="studio__option"
-                        :class="{ selected: draft.answers[question.id] === option.id }"
-                      >
-                        <input
-                          v-model="draft.answers[question.id]"
-                          type="radio"
-                          :name="question.id"
-                          :value="option.id"
-                        />
-                        <span class="studio__option-body">
-                          <strong>{{ option.label }}</strong>
-                          <small>{{ option.description || question.reason || option.label }}</small>
-                        </span>
-                        <em
-                          v-if="recommendedQuestionAnswer(question) === option.id"
-                          class="studio__recommended-badge"
+                      <div class="studio__options">
+                        <label
+                          v-for="option in question.options?.filter((item) => item.id !== 'none')"
+                          :key="option.id"
+                          class="studio__option"
+                          :class="{ selected: draft.answers[question.id] === option.id }"
                         >
-                          <Icon icon="lucide:star" :size="11" />
-                          {{ s('recommended') }}
-                        </em>
-                      </label>
+                          <input
+                            v-model="draft.answers[question.id]"
+                            type="radio"
+                            :name="question.id"
+                            :value="option.id"
+                          />
+                          <span class="studio__option-body">
+                            <strong>{{ option.label }}</strong>
+                            <small>{{
+                              option.description || question.reason || option.label
+                            }}</small>
+                          </span>
+                          <em
+                            v-if="recommendedQuestionAnswer(question) === option.id"
+                            class="studio__recommended-badge"
+                          >
+                            <Icon icon="lucide:star" :size="11" />
+                            {{ s('recommended') }}
+                          </em>
+                        </label>
+                        <label
+                          v-if="question.allowCustom || !question.options?.length"
+                          class="studio__option"
+                          :class="{ selected: draft.answers[question.id] === NONE_ANSWER }"
+                        >
+                          <input
+                            v-model="draft.answers[question.id]"
+                            type="radio"
+                            :name="question.id"
+                            :value="NONE_ANSWER"
+                          />
+                          <span class="studio__option-body">
+                            <strong>{{
+                              question.options?.some((item) => item.id === 'none')
+                                ? s('ownAnswer')
+                                : 'None'
+                            }}</strong>
+                            <small>{{ s('answerPlaceholder') }}</small>
+                          </span>
+                        </label>
+                        <label
+                          v-for="option in question.options?.filter((item) => item.id === 'none')"
+                          :key="option.id"
+                          class="studio__option"
+                          :class="{ selected: draft.answers[question.id] === option.id }"
+                        >
+                          <input
+                            v-model="draft.answers[question.id]"
+                            type="radio"
+                            :name="question.id"
+                            :value="option.id"
+                          />
+                          <span class="studio__option-body">
+                            <strong>{{ option.label }}</strong>
+                            <small>{{ option.description || s('recommended') }}</small>
+                          </span>
+                        </label>
+                      </div>
                       <label
-                        v-if="question.allowCustom || !question.options?.length"
-                        class="studio__option"
-                        :class="{ selected: draft.answers[question.id] === NONE_ANSWER }"
+                        v-if="draft.answers[question.id] === NONE_ANSWER"
+                        class="studio__input-label"
                       >
-                        <input
-                          v-model="draft.answers[question.id]"
-                          type="radio"
-                          :name="question.id"
-                          :value="NONE_ANSWER"
-                        />
-                        <span class="studio__option-body">
-                          <strong>{{
-                            question.options?.some((item) => item.id === 'none')
-                              ? s('ownAnswer')
-                              : 'None'
-                          }}</strong>
-                          <small>{{ s('answerPlaceholder') }}</small>
+                        <span class="studio__input-title">
+                          <Icon icon="lucide:pen-line" :size="13" />
+                          {{ s('ownAnswer') }}
                         </span>
+                        <textarea
+                          v-auto-size
+                          v-model="draft.customAnswers[question.id]"
+                          rows="3"
+                          maxlength="4000"
+                          :placeholder="s('answerPlaceholder')"
+                        ></textarea>
                       </label>
-                      <label
-                        v-for="option in question.options?.filter((item) => item.id === 'none')"
-                        :key="option.id"
-                        class="studio__option"
-                        :class="{ selected: draft.answers[question.id] === option.id }"
+                      <details
+                        v-if="
+                          draft.answers[question.id] && draft.answers[question.id] !== NONE_ANSWER
+                        "
+                        class="studio__note"
                       >
-                        <input
-                          v-model="draft.answers[question.id]"
-                          type="radio"
-                          :name="question.id"
-                          :value="option.id"
-                        />
-                        <span class="studio__option-body">
-                          <strong>{{ option.label }}</strong>
-                          <small>{{ option.description || s('recommended') }}</small>
-                        </span>
-                      </label>
-                    </div>
-                    <label
-                      v-if="draft.answers[question.id] === NONE_ANSWER"
-                      class="studio__input-label"
-                    >
-                      <span class="studio__input-title">
-                        <Icon icon="lucide:pen-line" :size="13" />
-                        {{ s('ownAnswer') }}
-                      </span>
-                      <textarea
-                        v-auto-size
-                        v-model="draft.customAnswers[question.id]"
-                        rows="3"
-                        maxlength="4000"
-                        :placeholder="s('answerPlaceholder')"
-                      ></textarea>
-                    </label>
-                    <details
-                      v-if="
-                        draft.answers[question.id] && draft.answers[question.id] !== NONE_ANSWER
-                      "
-                      class="studio__note"
-                    >
-                      <summary>
-                        <Icon icon="lucide:plus" :size="13" />
-                        <span>{{ s('addDetail') }}</span>
-                      </summary>
-                      <textarea
-                        v-auto-size
-                        v-model="draft.notes[question.id]"
-                        rows="2"
-                        maxlength="4000"
-                        :aria-label="s('addDetail')"
-                        :placeholder="s('detailPlaceholder')"
-                      ></textarea>
-                    </details>
-                  </fieldset>
-                </form>
-              </template>
-            </div>
+                        <summary>
+                          <Icon icon="lucide:plus" :size="13" />
+                          <span>{{ s('addDetail') }}</span>
+                        </summary>
+                        <textarea
+                          v-auto-size
+                          v-model="draft.notes[question.id]"
+                          rows="2"
+                          maxlength="4000"
+                          :aria-label="s('addDetail')"
+                          :placeholder="s('detailPlaceholder')"
+                        ></textarea>
+                      </details>
+                    </fieldset>
+                  </form>
+                </template>
+              </div>
+            </Transition>
           </div>
           <div v-if="!waitingForUser" class="studio__status-dock">
             <template v-if="waitingForConfirmation">
@@ -1443,7 +1449,7 @@ watch(
   () => props.task?.promptEnhancement?.clarificationRound,
   (round, previousRound) => {
     if (round == null || round === previousRound) return
-    draft.answers = {}
+    draft.answers = createStudioDraft(props.task).answers
     draft.customAnswers = {}
     draft.notes = {}
   }
@@ -1464,8 +1470,14 @@ watch(
     if (props.task?.id) {
       try {
         const saved = JSON.parse(sessionStorage.getItem(storageKey.value) || 'null')
-        if (saved?.key === value && saved?.draft?.brief && Array.isArray(saved?.draft?.outlines))
+        if (saved?.key === value && saved?.draft?.brief && Array.isArray(saved?.draft?.outlines)) {
+          const generatedBrief = draft.brief
           Object.assign(draft, saved.draft)
+          for (const field of ['title', 'audience', 'objective'] as const) {
+            if (!draft.brief[field]) draft.brief[field] = generatedBrief[field]
+          }
+          if (!draft.brief.mustInclude?.length) draft.brief.mustInclude = generatedBrief.mustInclude
+        }
         const defaults = createStudioDraft(props.task)
         for (const question of questions.value) {
           if (!draft.answers[question.id]) {

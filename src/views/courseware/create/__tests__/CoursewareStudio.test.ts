@@ -492,6 +492,9 @@ describe('course studio interactions', () => {
       promptEnhancement: { ...base.promptEnhancement, clarificationRound: 2 }
     }
     await nextTick()
+    // 等待旧轮问题淡出，避免在 Transition 的离场 DOM 上断言。
+    await new Promise((resolve) => setTimeout(resolve, 350))
+    await nextTick()
     expect(root.querySelector('.studio__input-label textarea')).toBeNull()
     await choose('__none__')
     expect((root.querySelector('textarea') as HTMLTextAreaElement).value).toBe('')

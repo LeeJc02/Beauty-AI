@@ -9,6 +9,17 @@ const popover = readFileSync(
 )
 
 describe('courseware entry and completed series contract', () => {
+  it('课后题重试在确认框、请求与回包之间保护账号上下文', () => {
+    const retry = entry.slice(
+      entry.indexOf('const handleRetryHomework ='),
+      entry.indexOf('const generationButtonText =')
+    )
+    expect(retry.indexOf('captureTaskContext()')).toBeLessThan(
+      retry.indexOf('await ElMessageBox.confirm')
+    )
+    expect(retry.match(/isTaskContextCurrent\(context\)/g)).toHaveLength(2)
+    expect(retry).toMatch(/generationStore\.setTask\([\s\S]*?,\s*context\s*\)/)
+  })
   it('places voice and catalog before uploaded materials, outside manual selection', () => {
     const identity = entry.indexOf('class="studio-entry-identity"')
     const upload = entry.indexOf('class="courseware-upload-area')
