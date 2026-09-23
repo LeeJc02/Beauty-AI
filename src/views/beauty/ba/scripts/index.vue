@@ -235,7 +235,9 @@ const RT_INITIAL_SCRIPTS: ScriptScenario[] = [
 ]
 
 const role = useBeautyRole()
-const isRegional = computed(() => role.value === 'Regional Training Manager')
+const isRegional = computed(
+  () => role.value === 'Regional Training Manager' || role.value === 'Regional Trainer'
+)
 const variant = computed(() => (isRegional.value ? REGIONAL_VARIANT : STANDARD_VARIANT))
 
 const scripts = ref<ScriptScenario[]>(isRegional.value ? RT_INITIAL_SCRIPTS : INITIAL_SCRIPTS)
