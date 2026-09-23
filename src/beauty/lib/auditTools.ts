@@ -2,13 +2,14 @@
  * 数据审计 Agent（Supervisor 工作台）· 工具层
  *
  * 对齐《Supervisor 已确定设计》：
- * - Agent 不直连业务库，只能通过白名单工具取数；工具分两类，
- *   `adm` 走 ADM 权限与数据工具，`supervisor` 是本地确定性计算。
+ * - Agent 不直连业务库，只能通过白名单工具取数；`adm` 仅负责授权，
+ *   `supervisor`（SV）负责全部数据查询、计算、独立档案保存与定时条件。
  * - 每次工具调用都要带权限码、查询范围、traceId、数据来源与耗时。
  * - 审计规则由确定性代码执行，Agent 只负责理解问题、补齐条件与组织表达。
- * - Agent 不修改培训任务、人员、组织与成绩；只写独立的审计/审计记录。
+ * - Agent 不修改培训任务、人员、组织与成绩；SV 只写独立审计状态。
  *
- * 本文件是纯函数层：不依赖 React、不写状态，UI 只把调用过程演出来。
+ * 本文件是本地演示的纯函数层：读取传入快照、返回展示结果，不写状态。
+ * 保存由调用方处理；未接入真实 ADM 授权、业务库、SV 数据库或后台调度服务。
  */
 import type {
   InspectionActor,
@@ -47,7 +48,7 @@ export type AuditToolId =
   | "save_inspection_record"
   | "save_schedule";
 
-/** 工具归属：adm = ADM 数据工具；supervisor = 本地确定性计算。 */
+/** 工具归属：adm = ADM 授权；supervisor = SV 查询、计算与独立状态保存。 */
 export type AuditToolOwner = "adm" | "supervisor";
 
 export type AuditFocus =
@@ -102,7 +103,7 @@ export interface AuditToolSpec {
   title: string;
   desc: string;
   owner: AuditToolOwner;
-  /** ADM 权限码；supervisor 侧工具用本地规则标识。 */
+  /** 权限或规则标识（本地演示元数据）；ADM 提供授权，SV 按授权执行工具。 */
   permission: string;
   /** 本次调用的实参。 */
   params: { label: string; value: string }[];
@@ -199,8 +200,8 @@ export const AUDIT_TOOL_LIST: {
   {
     id: "query_scope",
     name: "query_scope",
-    title: "查询地区、产品与组织范围",
-    desc: "取当前账号可见的地区、门店、品类与在岗人员，用于确认问题条件与查询边界。",
+    title: "确认账号授权范围",
+    desc: "ADM 仅提供账号授权范围；地区、门店、品类与人员概览由 SV 在范围内查询，本地演示使用传入快照。",
     owner: "adm",
     permission: "supervisor:scope:read",
   },
@@ -209,7 +210,7 @@ export const AUDIT_TOOL_LIST: {
     name: "check_data_gaps",
     title: "检查数据是否缺失",
     desc: "逐任务核对预计时长、逐人分配、频次、负责人、版本、推送与回传记录。",
-    owner: "adm",
+    owner: "supervisor",
     permission: "supervisor:data-quality:read",
   },
   {
@@ -217,7 +218,7 @@ export const AUDIT_TOOL_LIST: {
     name: "query_training_overview",
     title: "查询培训概览",
     desc: "按周期取学习 / 练习 / 考试 / 媒体采集任务的范围、覆盖人数与工时概览。",
-    owner: "adm",
+    owner: "supervisor",
     permission: "supervisor:training-overview:read",
   },
   {
@@ -225,7 +226,7 @@ export const AUDIT_TOOL_LIST: {
     name: "query_region_comparison",
     title: "查询区域对比",
     desc: "对比各区域人均分钟、超容量人数、完成率与任务数，找出显著偏离的区域。",
-    owner: "adm",
+    owner: "supervisor",
     permission: "supervisor:region-comparison:read",
   },
   {
@@ -233,7 +234,7 @@ export const AUDIT_TOOL_LIST: {
     name: "query_product_stats",
     title: "查询产品与品类统计",
     desc: "按品类汇总任务数、覆盖区域与命中问题，发现只在部分区域上线的品类。",
-    owner: "adm",
+    owner: "supervisor",
     permission: "supervisor:product-stats:read",
   },
   {
@@ -241,7 +242,7 @@ export const AUDIT_TOOL_LIST: {
     name: "query_learning_completion",
     title: "查询学习与考试完成情况",
     desc: "取学习、练习与考试的完成率、逾期率与考试成绩，判断执行风险。",
-    owner: "adm",
+    owner: "supervisor",
     permission: "supervisor:completion:read",
   },
   {
@@ -256,16 +257,16 @@ export const AUDIT_TOOL_LIST: {
     id: "save_inspection_record",
     name: "save_inspection_record",
     title: "保存独立审计记录",
-    desc: "把本次结论、证据、规则版本与查询范围保存为独立记录；不修改培训任务。",
-    owner: "adm",
+    desc: "由 SV 保存本次结论、证据、规则版本与查询范围为独立档案；本地演示仅保存本地记录，不修改培训任务。",
+    owner: "supervisor",
     permission: "supervisor:record:write",
   },
   {
     id: "save_schedule",
     name: "save_schedule",
     title: "保存定时报告条件",
-    desc: "保存结构化审计条件（地区、品类、指标、时间、规则），由 ADM 定时触发。",
-    owner: "adm",
+    desc: "由 SV 保存结构化审计条件（地区、品类、指标、时间、规则）；本地演示仅保存计划，不启动后台调度。",
+    owner: "supervisor",
     permission: "supervisor:schedule:write",
   },
 ];
@@ -283,7 +284,7 @@ export const AUDIT_STEP_NARRATION: Record<AuditToolId, string> = {
   query_learning_completion: "看学员的完成率、逾期和考试成绩",
   run_inspection_rules: "执行 A–G 规则，判定超容量、重复布置与数据不足",
   save_inspection_record: "把这次结论写成一条审计记录",
-  save_schedule: "把这个审计设成每周自动跑",
+  save_schedule: "保存每周审计计划（本地演示，不会自动执行）",
 };
 
 /* -------------------------------------------------------------- 小工具 */
@@ -528,7 +529,7 @@ function queryScope(
     ];
   });
   return {
-    headline: `权限校验通过：本次可查 ${ctx.regionIds.length} 个区域、${people.length} 名在岗 BA、${categories.size} 个品类，查询范围按当前账号收窄。`,
+    headline: `本地演示授权范围：本次可查 ${ctx.regionIds.length} 个区域、${people.length} 名在岗 BA、${categories.size} 个品类，查询范围按当前账号收窄。`,
     facts: [
       { label: "可查区域", value: `${ctx.regionIds.length} 个` },
       { label: "在岗 BA", value: `${people.length} 人` },
@@ -540,7 +541,8 @@ function queryScope(
       rows,
     },
     notes: [
-      "模型传来的地区、产品和用户身份只能作为请求内容，不能作为权限依据；每次工具调用都由 ADM 重新检查租户、功能权限、数据范围与字段范围。",
+      "设计边界：ADM 提供账号授权，SV 按授权范围执行数据查询与计算；模型传来的地区、产品和用户身份不能作为权限依据。",
+      "本地演示仅按传入账号与快照展示可见范围，未调用真实 ADM 授权接口，也未执行真实服务端权限校验。",
       ctx.actor.hq
         ? "当前账号为总部角色，可查看全部区域；区域角色只会返回本区域与全国任务。"
         : `当前账号为${ctx.actor.roleLabel}，只能查看${ctx.scopeLabel}与全国任务，其它区域的数据不会返回。`,
@@ -548,7 +550,7 @@ function queryScope(
         ? `数据里出现过的品类：${[...categories.keys()].join("、")}。`
         : "本期范围内没有带品类的任务。",
     ],
-    sources: ["业务库 · 地区与组织范围", "业务库 · 人员归属与在岗状态", "业务库 · 区域容量基线"],
+    sources: ["SV 本地演示快照 · 地区与组织范围", "SV 本地演示快照 · 人员归属与在岗状态", "SV 本地演示快照 · 区域容量基线"],
     scanned: `${ctx.regionIds.length} 个区域 · ${people.length} 名人员 · ${visibleStores.length} 家门店`,
     ms,
     traceId,
@@ -599,7 +601,7 @@ function checkDataGaps(
           "采集结果",
           `${attention} 条`,
           `${task.title} · 分析中 ${media.analysisProcessing} / 待复核 ${media.analysisNeedsAttention} / 失败 ${media.analysisFailed}`,
-          "ADM 结果侧",
+          "SV 本地演示 · 采集结果侧",
         ]]
       : [];
   });
@@ -627,16 +629,16 @@ function checkDataGaps(
     notes: [
       "配置字段与结果字段分开核对：预计时长、逐人分配、结构化频次、任务负责人、任务版本、推送记录、完成回传。",
       "缺字段只产出「数据不足」结论，不会被判定为违规；缺预计时长的人员不计入工时口径。",
-      "采集任务沿用 ADM 的分层状态：任务有 PUBLISHED/PAUSED/ENDED，提交另看 enabled，AI 分析另看 PROCESSING/NEEDS_ATTENTION/FAILED，不能用一个状态覆盖。",
+      "SV 按业务数据的分层状态核对本地快照：任务有 PUBLISHED/PAUSED/ENDED，提交另看 enabled，AI 分析另看 PROCESSING/NEEDS_ATTENTION/FAILED，不能用一个状态覆盖。",
       gaps.size
         ? `补齐入口：任务编辑页补齐后可重跑审计；字段缺失属于业务数据问题（可重试=false，需要用户补齐）。`
         : "本期没有需要补齐字段的任务。",
     ],
     sources: [
-      "业务库 · 任务配置字段",
-      "业务库 · 内容资源时长",
-      "业务库 · 人员名单快照",
-      ...(mediaTasks.length ? ["ADM · 采集提交、分析与来源可用性"] : []),
+      "SV 本地演示快照 · 任务配置字段",
+      "SV 本地演示快照 · 内容资源时长",
+      "SV 本地演示快照 · 人员名单快照",
+      ...(mediaTasks.length ? ["SV 本地演示快照 · 采集提交、分析与来源可用性"] : []),
     ],
     scanned: `${tasks.length} 项任务 × 7 个必填字段${mediaTasks.length ? ` · ${mediaTasks.length} 项采集结果侧任务` : ""}`,
     ms,
@@ -711,9 +713,9 @@ function queryTrainingOverview(
         : "未按品类收窄，覆盖全部品类。",
     ],
     sources: [
-      "业务库 · 学习 / 练习 / 考试 / 媒体采集任务",
-      "业务库 · 任务内容资源与预计时长",
-      "业务库 · 任务频次与达标目标",
+      "SV 本地演示快照 · 学习 / 练习 / 考试 / 媒体采集任务",
+      "SV 本地演示快照 · 任务内容资源与预计时长",
+      "SV 本地演示快照 · 任务频次与达标目标",
     ],
     scanned: `${tasks.length} 项任务 · ${people.size} 名 BA · ${known} 条工时可算人员`,
     ms,
@@ -840,7 +842,7 @@ function queryRegionComparison(
             .join("、")} 尚未确认容量基线，只能参考历史人均。`
         : "所有区域都已确认容量基线。",
     ],
-    sources: ["业务库 · 培训任务与人员排期", "业务库 · 区域容量基线", "业务库 · 完成回传"],
+    sources: ["SV 本地演示快照 · 培训任务与人员排期", "SV 本地演示快照 · 区域容量基线", "SV 本地演示快照 · 完成回传"],
     scanned: `${all.length} 个区域 · ${known} 名 BA 的排期`,
     ms,
     traceId,
@@ -938,7 +940,7 @@ function queryProductStats(
       "覆盖口径：全国任务视为覆盖全部可见区域；区域任务的命中区域决定覆盖范围。",
       "品类来自任务配置，与题库、课件共用同一套全局品类；品类只在部分区域有任务时属于需要确认的排期问题，不直接判定违规。",
     ],
-    sources: ["业务库 · 任务品类配置", "业务库 · 任务下发的区域范围", "业务库 · 项目全局品类"],
+    sources: ["SV 本地演示快照 · 任务品类配置", "SV 本地演示快照 · 任务下发的区域范围", "SV 本地演示快照 · 项目全局品类"],
     scanned: `${tasks.length} 项任务 · ${categories.size} 个品类 × ${allRegionIds.length} 个区域`,
     ms,
     traceId,
@@ -1024,7 +1026,7 @@ function queryLearningCompletion(
         : "所有已发布任务都有完成回传。",
       "考试成绩取任务提交记录中的最终成绩，同一场考试按单次最终成绩计算。",
     ],
-    sources: ["业务库 · 学员任务进度", "业务库 · 考试提交记录", "业务库 · 完成回传与推送记录"],
+    sources: ["SV 本地演示快照 · 学员任务进度", "SV 本地演示快照 · 考试提交记录", "SV 本地演示快照 · 完成回传与推送记录"],
     scanned: `${headcount} 名 BA · ${tasks.length} 项任务 · ${scores.length} 份成绩`,
     ms,
     traceId,
@@ -1079,7 +1081,7 @@ function runInspectionRules(
       `关键阈值：周容量 ${state.policy.weeklyCapacityMinutes} 分钟、单日 ${state.policy.dailyLimitMinutes} 分钟、单任务周投入 ${state.policy.taskWeeklyLimitMinutes} 分钟、${state.policy.deadlineWindowDays} 天内 ≥ ${state.policy.deadlineTaskCount} 项视为集中。`,
       "规则由确定性代码执行，阈值随规则版本一起记录；相同结论连续出现时合并为持续问题，不重复制造记录。",
     ],
-    sources: ["本地规则集 v" + state.policy.version, "ADM 返回的任务与人员快照"],
+    sources: ["SV 本地规则集 v" + state.policy.version, "SV 本地演示快照 · 任务与人员"],
     scanned: `${scopedTasks(state, ctx).length} 项任务 × ${ctx.weeks.length} 个周期 × 7 类规则`,
     ms,
     traceId,
@@ -1096,7 +1098,7 @@ function saveInspectionRecord(
   const report = buildAuditReport(state, ctx);
   const recordId = `insp-${ctx.week.replace(/-/g, "")}-${hex(`${ctx.scopeLabel}|${ctx.focus}`)}`;
   return {
-    headline: `已保存独立审计记录 ${recordId}：${report.findings.length} 条结论、规则集 v${state.policy.version}、查询范围${ctx.scopeLabel}。`,
+    headline: `本地演示已保存独立审计记录 ${recordId}：${report.findings.length} 条结论、规则集 v${state.policy.version}、查询范围${ctx.scopeLabel}。`,
     facts: [
       { label: "记录编号", value: recordId },
       { label: "结论数", value: `${report.findings.length} 条` },
@@ -1121,9 +1123,9 @@ function saveInspectionRecord(
     notes: [
       "审计记录只保存结论、证据、规则版本与查询范围，不修改任何培训任务。",
       "相同问题连续出现时合并为持续问题：只推进最近命中时间与复发次数，不重复新增记录。",
-      "写入由 ADM 完成，写入前再次检查创建者的区域范围与字段范围。",
+      "设计边界：档案由 SV 按 ADM 授权范围保存到独立 SV 数据库；本地演示仅由调用方保存本地记录，未接入真实数据库。",
     ],
-    sources: ["审计记录表 · 本次批次", "本地规则集 v" + state.policy.version],
+    sources: ["SV 本地演示 · 本次审计记录", "SV 本地规则集 v" + state.policy.version],
     scanned: `1 条记录 · ${report.findings.length} 条结论`,
     ms,
     traceId,
@@ -1139,10 +1141,10 @@ function saveSchedule(
   const scheduleId = `sch-${hex(`${ctx.scopeLabel}|${ctx.focus}|${ctx.weeks[0]}`)}`;
   const report = buildAuditReport(state, ctx);
   return {
-    headline: `已保存定时报告条件：每周一 09:00（Asia/Jakarta）审计${ctx.scopeLabel}的${FOCUS_LABELS[ctx.focus]}，由 ADM 定时触发。`,
+    headline: `本地演示仅保存计划：每周一 09:00（Asia/Jakarta）审计${ctx.scopeLabel}的${FOCUS_LABELS[ctx.focus]}；未启动后台调度，不会自动执行或发送消息。`,
     facts: [
       { label: "订阅编号", value: scheduleId },
-      { label: "触发时间", value: "每周一 09:00" },
+      { label: "计划时间", value: "每周一 09:00" },
       { label: "范围", value: ctx.scopeLabel },
       { label: "关注", value: FOCUS_LABELS[ctx.focus] },
     ],
@@ -1154,17 +1156,17 @@ function saveSchedule(
         ["关注指标", FOCUS_LABELS[ctx.focus]],
         ["时间范围", "最近一个完整周"],
         ["审计规则", `规则集 v${state.policy.version}`],
-        ["接收方式", "页面 + 飞书（由 ADM 发送）"],
+        ["接收方式", "页面预览；飞书仅为草稿，未发送"],
         ["群报告内容", "仅汇总数据，不包含员工明细"],
       ],
     },
     notes: [
       "审计条件保存的是结构化内容（地区、品类、指标、时间、规则），不是一段让模型以后重新猜测的话。",
-      "定时任务由 ADM 触发并向 Supervisor 发起审计；飞书消息由 ADM 在发送前再次检查接收人权限，Supervisor 不直接发送。",
+      "设计边界：若启用自动执行，由 SV 持有计划和调度状态，ADM 仅提供非交互授权与飞书投递；当前本地演示未接入这些服务。",
       "个人报告按权限可含明细，群报告默认只发汇总数据。",
       `本次立即预览（飞书群消息草稿）：${report.title} · ${report.verdict} · 命中 ${report.findings.length} 条结论，详情见 Supervisor 工作台。`,
     ],
-    sources: ["定时报告条件表 · 本次订阅", "业务库 · 接收人权限"],
+    sources: ["SV 本地演示 · 本次计划条件", "本地账号范围 · 未校验真实接收人权限"],
     scanned: "1 条订阅 · 7 个结构化字段",
     ms,
     traceId,
@@ -1529,7 +1531,7 @@ export function planFor(
     steps,
     followUps: [
       "把结论保存成审计记录",
-      "每周一早上九点自动跑这个审计",
+      "保存每周一早上九点的审计计划（本地演示）",
       "哪个区域工时压力最大",
       "哪些任务数据不全",
     ],
@@ -1692,10 +1694,10 @@ export function buildAuditReport(
     days,
     dailyLimitMinutes: state.policy.dailyLimitMinutes,
     sources: [
-      "业务库 · 学习 / 练习 / 考试 / 媒体采集任务",
-      "业务库 · 人员归属、在岗状态与名单快照",
-      "业务库 · 完成回传与考试成绩",
-      `本地规则集 v${state.policy.version}（A–G，阈值随版本固定）`,
+      "SV 本地演示快照 · 学习 / 练习 / 考试 / 媒体采集任务",
+      "SV 本地演示快照 · 人员归属、在岗状态与名单快照",
+      "SV 本地演示快照 · 完成回传与考试成绩",
+      `SV 本地规则集 v${state.policy.version}（A–G，阈值随版本固定）`,
     ],
     ruleVersion: `v${state.policy.version}`,
   };

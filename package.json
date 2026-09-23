@@ -20,7 +20,7 @@
     "lint:eslint": "eslint --fix --ext .js,.ts,.vue ./src",
     "lint:format": "prettier --write --loglevel warn \"src/**/*.{js,ts,json,css,scss,vue,html,md}\"",
     "test:unit": "vitest run",
-    "test:beauty": "node --import tsx --test src/beauty/lib/*.test.ts"
+    "test:beauty": "node --import tsx --test --test-concurrency=1 src/beauty/lib/*.test.ts"
   },
   "dependencies": {
     "@element-plus/icons-vue": "2.3.2",
