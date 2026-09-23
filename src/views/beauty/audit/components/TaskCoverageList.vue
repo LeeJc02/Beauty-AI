@@ -119,8 +119,7 @@ const visibleRegions = computed(() =>
   props.state.regions.filter((item) => props.actor.hq || item.id === props.actor.regionId)
 )
 
-const regionNameOf = (id: string) =>
-  props.state.regions.find((item) => item.id === id)?.name ?? id
+const regionNameOf = (id: string) => props.state.regions.find((item) => item.id === id)?.name ?? id
 </script>
 
 <template>
@@ -143,7 +142,11 @@ const regionNameOf = (id: string) =>
           :size="13"
           class="absolute top-2.5 left-2 text-muted-foreground"
         />
-        <input v-model="search" :class="[FIELD_CLASS, 'w-48 pl-6']" :placeholder="t('搜索任务或规则')" />
+        <input
+          v-model="search"
+          :class="[FIELD_CLASS, 'w-48 pl-6']"
+          :placeholder="t('搜索任务或规则')"
+        />
       </div>
       <select v-model="kind" :class="[FIELD_CLASS, 'w-24']">
         <option value="all">{{ t('全部类型') }}</option>
@@ -197,7 +200,9 @@ const regionNameOf = (id: string) =>
               <span class="flex flex-wrap items-center gap-1.5">
                 <BeautyKindBadge :kind="row.task.kind" />
                 <BeautyWeightBadge :weight="row.task.weight" />
-                <span class="text-[12.5px] font-semibold text-foreground">{{ row.task.title }}</span>
+                <span class="text-[12.5px] font-semibold text-foreground">{{
+                  row.task.title
+                }}</span>
                 <BeautyLevelBadge v-if="row.worst" :level="row.worst.level" />
                 <BeautyChip
                   v-else-if="missingFields(row.task).length"
@@ -212,22 +217,29 @@ const regionNameOf = (id: string) =>
                   v{{ row.task.version }}
                 </BeautyChip>
               </span>
-              <span class="flex flex-wrap items-center gap-x-2 gap-y-1 text-[10.5px] text-muted-foreground">
+              <span
+                class="flex flex-wrap items-center gap-x-2 gap-y-1 text-[10.5px] text-muted-foreground"
+              >
                 <span>
                   {{ t('审计') }}
                   {{ row.lastSeen ? row.lastSeen.slice(5, 16).replace('T', ' ') : '—' }}
                 </span>
                 <span>
-                  {{ row.task.owners.regionOwnerName || row.task.owners.hqOwnerName || t('未配置') }}
+                  {{
+                    row.task.owners.regionOwnerName || row.task.owners.hqOwnerName || t('未配置')
+                  }}
                 </span>
                 <span>
                   {{ row.people.size }} {{ t('人') }} ·
-                  {{
-                    row.regionIds.map((id) => regionNameOf(id)).join('、') || t('全局')
-                  }}
+                  {{ row.regionIds.map((id) => regionNameOf(id)).join('、') || t('全局') }}
                 </span>
                 <span v-if="missingFields(row.task).length">
-                  {{ t('缺少') }}{{ missingFields(row.task).map((gap) => gap.field).join('、') }}
+                  {{ t('缺少')
+                  }}{{
+                    missingFields(row.task)
+                      .map((gap) => gap.field)
+                      .join('、')
+                  }}
                 </span>
               </span>
               <span v-if="row.worst" class="flex flex-wrap items-center gap-1">
@@ -250,7 +262,11 @@ const regionNameOf = (id: string) =>
           >
             <div class="flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
               <Icon icon="lucide:clipboard-check" :size="12" />
-              <button type="button" class="inspection-link" @click="emit('focus-task', row.task.id)">
+              <button
+                type="button"
+                class="inspection-link"
+                @click="emit('focus-task', row.task.id)"
+              >
                 {{ t('任务体检') }}
               </button>
               <button

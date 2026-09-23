@@ -2,6 +2,7 @@ import router from './router'
 import type { RouteRecordRaw } from 'vue-router'
 import { isRelogin } from '@/config/axios/service'
 import { getAccessToken } from '@/utils/auth'
+import { ensurePrototypeSession, isPrototypeInspectionEntry } from '@/mock'
 import { useTitle } from '@/hooks/web/useTitle'
 import { useNProgress } from '@/hooks/web/useNProgress'
 import { usePageLoading } from '@/hooks/web/usePageLoading'
@@ -47,6 +48,7 @@ const parseURL = (
 }
 
 const getDefaultEntryPath = (): string => {
+  if (isPrototypeInspectionEntry()) return '/data-audit'
   const permissionStore = usePermissionStoreWithOut()
   const homeRoute = permissionStore.getRouters.find((route) => route.path === '/')
   // 首页重定向可以是字符串、对象或函数；路由跳转只接受字符串路径，其余回退到 '/'。
@@ -72,6 +74,7 @@ const whiteList = [
 router.beforeEach(async (to, from, next) => {
   start()
   loadStart()
+  ensurePrototypeSession()
   if (getAccessToken()) {
     if (to.path === '/login') {
       next({ path: normalizeEntryPath('/') })

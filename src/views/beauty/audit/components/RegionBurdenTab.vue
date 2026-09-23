@@ -15,7 +15,12 @@ import {
   visibleRegionIds,
   type RegionBurden
 } from '@/beauty/lib/inspectionBurden'
-import type { DispositionAction, InspectionActor, InspectionState, TaskPatch } from '@/beauty/lib/inspectionTypes'
+import type {
+  DispositionAction,
+  InspectionActor,
+  InspectionState,
+  TaskPatch
+} from '@/beauty/lib/inspectionTypes'
 import { useBeautyI18n } from '@/beauty/composables'
 import RegionDetail from './RegionDetail.vue'
 import RegionTable from './RegionTable.vue'
@@ -136,7 +141,9 @@ const onOpenSource = (taskId: string) => {
 
 <template>
   <div class="grid gap-4">
-    <div class="flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground">
+    <div
+      class="flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground"
+    >
       <span>
         {{ t('统计周期') }} {{ weekLabel }} · {{ t('口径：区域容量') }}{{ capacityHint }} ·
         {{ t('单日超过') }} {{ state.policy.dailyLimitMinutes }} {{ t('分钟记为单日过载') }}

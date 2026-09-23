@@ -3,6 +3,7 @@
  * 「查询过程」卡（原型 `AuditConsole.tsx` 的 `TrailCard`：
  * 每步一条旁白，可展开看这次调用的明细）。
  */
+import { computed, ref } from 'vue'
 import { useBeautyI18n } from '@/beauty/composables'
 import AuditCallDetail from './AuditCallDetail.vue'
 import { shortHeadline, type TrailItem, type TrailStep } from './consoleModel'

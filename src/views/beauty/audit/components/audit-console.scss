@@ -52,6 +52,155 @@
 .audit-console-root button {
   cursor: pointer;
 }
+
+/* 首屏与生成新课件共用「左侧叙事 + 右侧编辑」的单卡入口。提交后才换成双栏工作台。 */
+.audit-entry-page {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 0;
+}
+
+.audit-entry-card {
+  display: grid;
+  width: min(100%, 1120px);
+  max-height: 100%;
+  grid-template-columns: minmax(220px, 0.75fr) minmax(0, 1.6fr);
+  align-items: center;
+  gap: clamp(28px, 4vw, 64px);
+  overflow: hidden;
+  padding: clamp(28px, 4vw, 52px);
+  border: 1px solid #e8e2de;
+  border-radius: 24px;
+  background: #fff;
+  box-shadow: 0 4px 20px -2px rgb(28 25 23 / 5%);
+}
+
+.audit-entry-story {
+  padding-top: 12px;
+}
+
+.audit-entry-intro {
+  margin-bottom: 40px;
+  text-align: left;
+}
+
+.audit-entry-intro h1 {
+  margin: 20px 0 18px;
+  color: var(--cw-ink);
+  font-size: clamp(28px, 2.8vw, 42px);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1.35;
+  text-wrap: balance;
+}
+
+.audit-entry-intro p {
+  max-width: 30ch;
+  margin: 0;
+  color: var(--cw-muted);
+  font-size: 14px;
+  line-height: 1.9;
+}
+
+.audit-entry-roadmap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+.audit-entry-roadmap__step {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.audit-entry-roadmap__num {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  flex: none;
+  place-items: center;
+  border: 1px solid #dfd5ce;
+  border-radius: 50%;
+  color: #8a6557;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.audit-entry-roadmap__step strong {
+  display: block;
+  color: var(--cw-ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.audit-entry-roadmap__step small {
+  display: block;
+  margin-top: 5px;
+  color: var(--cw-muted);
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.audit-entry-editor {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.audit-entry-prompt-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  color: var(--cw-subtle);
+  font-size: 11px;
+}
+
+.audit-entry-prompt-header label {
+  color: var(--cw-ink2);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.audit-entry-editor .cw-textarea {
+  min-height: 170px;
+  padding: 18px;
+  font-size: 15px;
+}
+
+.audit-entry-examples {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.audit-entry-examples .cw-entry-examples-label {
+  width: 100%;
+}
+
+.audit-entry-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.audit-entry-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
 .audit-console-root .cw-swap-in {
   animation: cw-swap-in 0.9s var(--cw-settle) both;
 }
@@ -269,6 +418,14 @@
   box-shadow: none;
 }
 
+.audit-console-root button:focus-visible,
+.audit-console-root input:focus-visible,
+.audit-console-root textarea:focus-visible,
+.audit-console-root summary:focus-visible {
+  outline: 2px solid var(--cw-accent);
+  outline-offset: 2px;
+}
+
 .audit-console-root .cw-ghost {
   display: inline-flex;
   min-height: 38px;
@@ -478,39 +635,6 @@
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 20px;
 }
-.audit-console-root .studio__swap-panels {
-  position: absolute;
-  z-index: 3;
-  top: 50%;
-  left: 50%;
-  display: grid;
-  width: 36px;
-  height: 36px;
-  place-items: center;
-  border: 1px solid var(--cw-border);
-  border-radius: 50%;
-  background: #fff;
-  color: var(--cw-accent);
-  box-shadow: var(--cw-shadow-sm);
-  transform: translate(-50%, -50%);
-  transition:
-    transform 0.35s ease,
-    box-shadow 0.2s ease;
-}
-
-.audit-console-root .studio__swap-panels:hover {
-  transform: translate(-50%, -50%) scale(1.08);
-  box-shadow: var(--cw-shadow-md);
-}
-
-.audit-console-root .studio__conversation.is-swapped {
-  order: 2;
-}
-
-.audit-console-root .studio__draft.is-swapped {
-  order: 1;
-}
-
 .audit-console-root .studio__conversation,
 .audit-console-root .studio__draft {
   display: flex;
@@ -519,14 +643,9 @@
   flex-direction: column;
   overflow: hidden;
   border: 1px solid var(--cw-border);
-  border-radius: 24px;
+  border-radius: 16px;
   background: #fff;
   box-shadow: var(--cw-shadow-sm);
-  animation: cw-expand-left 0.9s var(--cw-enter) both;
-}
-
-.audit-console-root .studio__draft {
-  animation-delay: 0.14s;
 }
 
 .audit-console-root .studio__coach-bar {
@@ -783,7 +902,7 @@
   gap: 0;
   overflow-y: auto;
   padding: 24px 24px 40px;
-  mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent 100%);
+  scrollbar-gutter: stable;
 }
 
 @media (max-width: 1100px) {
@@ -839,9 +958,6 @@
   }
   .audit-console-root .studio__mobile-tabs {
     display: flex;
-  }
-  .audit-console-root .studio__swap-panels {
-    display: none;
   }
   .audit-console-root .studio__body {
     display: flex;
@@ -1031,16 +1147,6 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 7px;
-}
-
-.audit-console-root .audit-tool-name {
-  padding: 2px 6px;
-  border-radius: 5px;
-  background: var(--cw-surface-subtle);
-  border: 1px solid var(--cw-border);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 11px;
-  font-weight: 600;
 }
 
 .audit-console-root .audit-meta {
@@ -1324,39 +1430,6 @@
 .audit-console-root .audit-rail-row strong {
   color: var(--cw-ink);
   font-weight: 600;
-}
-
-.audit-console-root .audit-tool-row {
-  display: grid;
-  gap: 2px;
-  padding: 8px 10px;
-  border-radius: 8px;
-  background: var(--cw-surface-subtle);
-  text-align: left;
-  border: 0;
-  transition: background 0.18s ease;
-}
-
-.audit-console-root .audit-tool-row:hover:not(:disabled) {
-  background: var(--cw-accent-subtle);
-}
-
-.audit-console-root .audit-tool-row:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.audit-console-root .audit-tool-row__head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-}
-
-.audit-console-root .audit-tool-row__desc {
-  color: var(--cw-muted);
-  font-size: 10px;
-  line-height: 1.6;
 }
 
 /* ---------------------------------------------------------- 补问卡 */
@@ -1808,64 +1881,6 @@
 
 /* ----------------------------------------------------------- 依据栏 */
 
-.audit-console-root .audit-rail-toggle {
-  display: flex;
-  width: 100%;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--cw-muted);
-}
-
-.audit-console-root .audit-datapoint {
-  display: grid;
-  min-height: 104px;
-  max-height: 104px;
-  gap: 4px;
-  overflow: hidden;
-  padding: 10px 12px;
-  border: 1px solid var(--cw-border-subtle);
-  border-radius: 10px;
-  background: var(--cw-surface-subtle);
-  animation: audit-datapoint-arrive 0.42s var(--cw-enter) both;
-}
-
-@keyframes audit-datapoint-arrive {
-  from {
-    opacity: 0;
-    transform: translateY(6px) scale(0.985);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-.audit-console-root .audit-datapoint__title {
-  color: var(--cw-ink);
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.audit-console-root .audit-datapoint__facts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
-.audit-console-root .audit-datapoint__headline {
-  display: -webkit-box;
-  overflow: hidden;
-  color: var(--cw-muted);
-  font-size: 10.5px;
-  line-height: 1.6;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-}
-
 .audit-console-root .audit-chip--ok {
   gap: 3px;
 }
@@ -1953,14 +1968,6 @@
   background: #fff;
 }
 
-.audit-console-root .studio__conversation {
-  animation: audit-studio-expand 900ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
-}
-
-.audit-console-root .studio__draft {
-  animation: audit-studio-expand 900ms 140ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
-}
-
 @keyframes audit-studio-expand {
   from {
     opacity: 0;
@@ -2020,9 +2027,76 @@
   margin-top: 4px;
 }
 
-.audit-console-root .audit-datapoint {
-  min-height: 104px;
-  max-height: 104px;
+@media (max-width: 1000px) {
+  .audit-entry-card {
+    grid-template-columns: 1fr;
+    gap: 28px;
+    padding: 28px;
+  }
+  .audit-entry-story {
+    padding-top: 0;
+  }
+  .audit-entry-intro {
+    margin-bottom: 0;
+  }
+  .audit-entry-intro p {
+    max-width: none;
+  }
+  .audit-entry-roadmap {
+    display: none;
+  }
+}
+
+@media (max-width: 600px) {
+  .audit-entry-page {
+    padding: 12px 0;
+  }
+  .audit-entry-card {
+    gap: 24px;
+    padding: 20px;
+  }
+  .audit-entry-intro h1 {
+    font-size: 30px;
+  }
+  .audit-entry-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .audit-entry-footer .cw-primary {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+:global(.dark) .audit-entry-card {
+  border-color: #423a35;
+  background: #211f1d;
+}
+
+@media (min-width: 769px) and (max-height: 900px) {
+  .audit-console-root .studio {
+    gap: 10px;
+  }
+  .audit-console-root .studio__header {
+    min-height: 48px;
+    padding: 8px 16px;
+  }
+  .audit-console-root .studio__body {
+    gap: 12px;
+  }
+  .audit-console-root .studio__coach-bar,
+  .audit-console-root .studio__draft-header {
+    min-height: 46px;
+    padding-block: 8px;
+  }
+  .audit-console-root .audit-thread,
+  .audit-console-root .studio__document {
+    padding: 14px 16px 20px;
+  }
+  .audit-console-root .audit-composer {
+    min-height: 60px;
+    padding: 8px 16px 10px;
+  }
 }
 
 @media (max-width: 768px) {
@@ -2038,4 +2112,235 @@
     min-height: auto;
     padding: 10px 0 24px;
   }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .audit-console-root,
+  .audit-console-root * {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* 卡片外框跟随可用高度；内容不压缩、不裁掉，滚动留在面板内部。 */
+.inspection-agent-view .audit-console-root {
+  height: 100%;
+  min-height: 0;
+}
+.audit-console-root .audit-entry-page {
+  box-sizing: border-box;
+  min-height: 0;
+  padding-block: clamp(0px, 2dvh, 16px);
+}
+.audit-console-root .audit-entry-card {
+  min-height: 0;
+  overflow-y: auto;
+}
+.audit-console-root .studio__header,
+.audit-console-root .studio__mobile-tabs,
+.audit-console-root .studio__coach-bar,
+.audit-console-root .studio__draft-header,
+.audit-console-root .audit-composer,
+.audit-console-root .studio__composer,
+.audit-console-root .audit-thread > *,
+.audit-console-root .studio__document > * {
+  flex-shrink: 0;
+}
+@media (min-width: 769px) and (max-height: 900px) {
+  .audit-console-root .studio__conversation.is-swapped {
+    transform: translateX(calc(100% + 12px));
+  }
+  .audit-console-root .studio__draft.is-swapped {
+    transform: translateX(calc(-100% - 12px));
+  }
+}
+@media (max-width: 768px) {
+  .audit-console-root .studio__conversation,
+  .audit-console-root .studio__draft {
+    flex: 1;
+    min-height: 0;
+  }
+}
+
+@media (min-width: 769px) and (max-height: 700px) {
+  .audit-console-root .audit-entry-card {
+    align-items: start;
+    padding: 20px 28px;
+  }
+  .audit-console-root .audit-entry-intro {
+    margin-bottom: 16px;
+  }
+  .audit-console-root .audit-entry-intro h1 {
+    margin-block: 10px 12px;
+    font-size: clamp(28px, 5vh, 34px);
+  }
+  .audit-console-root .audit-entry-roadmap {
+    display: none;
+  }
+  .audit-console-root .audit-entry-editor .cw-textarea {
+    min-height: clamp(92px, 18vh, 128px);
+  }
+  .audit-console-root .audit-entry-footer {
+    margin-top: 12px;
+  }
+}
+
+/* ------------------------------------------------------------ 产物区 / 追问条
+ *
+ * 左栏只做交互（提问、补问、继续追问），右栏只放中间产物与数据：
+ * 口径（仅在取数开始后）→ 取数过程与数据 → 结论与明细。
+ */
+.audit-console-root .audit-stage-block + .audit-stage-block,
+.audit-console-root .audit-rail-block + .audit-stage-block,
+.audit-console-root .audit-stage-block + .audit-rail-block {
+  margin-top: 14px;
+}
+
+.audit-console-root .audit-stage-empty {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  margin: auto;
+  padding: 28px 20px;
+  text-align: center;
+  color: var(--cw-muted);
+}
+
+.audit-console-root .audit-stage-empty svg {
+  color: var(--cw-accent);
+  opacity: 0.75;
+}
+
+.audit-console-root .audit-stage-empty strong {
+  color: var(--cw-ink);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.audit-console-root .audit-stage-empty span {
+  max-width: 34ch;
+  font-size: 12px;
+  line-height: 1.75;
+}
+
+.audit-console-root .audit-followups {
+  display: flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 22px 0;
+  background: #fff;
+}
+
+.audit-console-root .audit-followups__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--cw-muted);
+  font-size: 11.5px;
+}
+
+.audit-console-root .audit-followup {
+  padding: 4px 10px;
+  border: 1px solid var(--cw-border);
+  border-radius: 999px;
+  background: var(--cw-surface-subtle);
+  color: var(--cw-ink2);
+  font-size: 12px;
+  transition: all 0.18s ease;
+}
+
+.audit-console-root .audit-followup:hover {
+  border-color: var(--cw-accent-border);
+  background: var(--cw-accent-subtle);
+  color: var(--cw-accent);
+}
+
+.audit-console-root .audit-followup:focus-visible {
+  outline: 2px solid var(--cw-accent);
+  outline-offset: 2px;
+}
+
+@media (max-width: 768px) {
+  .audit-console-root .audit-followups {
+    padding: 10px 16px 0;
+  }
+}
+
+/* 固定职责：左侧交互，右侧阅读。复用课件工作台的色彩与等宽面板。 */
+.audit-console-root .audit-confirm-panel,
+.audit-console-root .audit-report-controls {
+  padding: 16px;
+  border: 1px solid var(--cw-border);
+  border-radius: 12px;
+  background: var(--cw-surface-subtle);
+}
+.audit-console-root .audit-confirm-panel > strong {
+  color: var(--cw-ink);
+  font-size: 14px;
+}
+.audit-console-root .audit-confirm-panel p,
+.audit-console-root .audit-report-controls p {
+  margin: 8px 0;
+  color: var(--cw-muted);
+  font-size: 12px;
+  line-height: 1.65;
+}
+.audit-console-root .audit-confirm-panel dl {
+  display: grid;
+  gap: 8px;
+  margin: 16px 0;
+  font-size: 13px;
+}
+.audit-console-root .audit-confirm-panel dl > div {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 12px;
+}
+.audit-console-root .audit-confirm-panel dt {
+  color: var(--cw-muted);
+}
+.audit-console-root .audit-confirm-panel dd {
+  margin: 0;
+  color: var(--cw-ink);
+  overflow-wrap: anywhere;
+}
+.audit-console-root .audit-artifact-tabs {
+  display: flex;
+  flex: none;
+  gap: 20px;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--cw-border);
+}
+.audit-console-root .audit-artifact-tabs button {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 0;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--cw-muted);
+  font-size: 13px;
+  cursor: pointer;
+}
+.audit-console-root .audit-artifact-tabs button[aria-selected='true'] {
+  border-bottom-color: var(--cw-accent);
+  color: var(--cw-accent);
+}
+.audit-console-root .audit-artifact-tabs button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.audit-console-root .audit-artifact-tabs button span {
+  font-size: 11px;
+}
+.audit-console-root button:focus-visible,
+.audit-console-root input:focus-visible,
+.audit-console-root textarea:focus-visible {
+  outline: 2px solid var(--cw-accent);
+  outline-offset: 3px;
 }

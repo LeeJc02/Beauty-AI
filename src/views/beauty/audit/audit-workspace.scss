@@ -24,9 +24,36 @@
   flex-direction: column;
 }
 
+.inspection-workspace .inspection-agent-view {
+  min-height: 0;
+  height: 100%;
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
+.inspection-workspace .inspection-agent-view.hidden {
+  display: none;
+}
+
+.inspection-workspace .inspection-archive-view {
+  min-height: 0;
+}
+
 .inspection-workspace .audit-console-root {
   min-height: 0;
   height: 100%;
+}
+
+/* Layout 的内容区在不同显示器上高度不同；工作台只占可用视口，内容在卡片内滚动。 */
+@supports (height: 100dvh) {
+  .inspection-workspace > div.inspection-agent-view {
+    flex: 0 0 auto;
+    height: calc(
+      100dvh - var(--top-tool-height) - var(--tags-view-height) -
+        var(--app-footer-height) - var(--app-content-padding) - var(--app-content-padding)
+    );
+    max-height: 100%;
+  }
 }
 
 .inspection-workspace *,
@@ -727,7 +754,9 @@
   line-height: 1.625;
   text-align: left;
   white-space: normal;
-  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 10%), 0 8px 10px -6px rgb(0 0 0 / 10%);
+  box-shadow:
+    0 20px 25px -5px rgb(0 0 0 / 10%),
+    0 8px 10px -6px rgb(0 0 0 / 10%);
   pointer-events: none;
 }
 

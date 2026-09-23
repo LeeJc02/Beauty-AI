@@ -206,8 +206,7 @@ const decide = (approve: boolean) => {
   const result =
     props.onDecideException?.(pendingException.value.id, approve, decisionNote.value) ?? ''
   decisionMessage.value =
-    result ||
-    (approve ? t('已批准，风险状态更新为例外生效。') : t('已驳回，风险保持待处理。'))
+    result || (approve ? t('已批准，风险状态更新为例外生效。') : t('已驳回，风险保持待处理。'))
 }
 
 const submit = () => {
@@ -282,7 +281,11 @@ const mergePeople = (taskId: string) => {
           }}
         </div>
         <template v-if="pendingException">
-          <input v-model="decisionNote" :class="[FIELD_CLASS, 'w-full']" :placeholder="t('审批备注（可选）')" />
+          <input
+            v-model="decisionNote"
+            :class="[FIELD_CLASS, 'w-full']"
+            :placeholder="t('审批备注（可选）')"
+          />
           <div class="flex flex-wrap gap-1.5">
             <el-button size="small" @click="decide(true)">{{ t('批准') }}</el-button>
             <el-button size="small" plain @click="decide(false)">{{ t('驳回') }}</el-button>
@@ -340,7 +343,9 @@ const mergePeople = (taskId: string) => {
               </span>
             </label>
           </template>
-          <p v-else class="text-[11px] text-muted-foreground">{{ t('未找到同源内容的其他任务。') }}</p>
+          <p v-else class="text-[11px] text-muted-foreground">{{
+            t('未找到同源内容的其他任务。')
+          }}</p>
         </div>
       </div>
 
@@ -368,14 +373,20 @@ const mergePeople = (taskId: string) => {
         v-if="action === 'mark-exception'"
         class="grid gap-2 rounded-lg bg-teal-50/60 p-3 ring-1 ring-teal-200"
       >
-        <div class="text-[11.5px] text-teal-900">{{ t('例外只对这一条风险生效，到期自动恢复。') }}</div>
+        <div class="text-[11.5px] text-teal-900">{{
+          t('例外只对这一条风险生效，到期自动恢复。')
+        }}</div>
         <div class="grid gap-1.5 sm:grid-cols-2">
           <div>
             <div :class="FIELD_LABEL_CLASS">{{ t('例外到期日') }}</div>
             <input v-model="expiresOn" :class="[FIELD_CLASS, 'w-full']" type="date" />
           </div>
           <div class="text-[11px] text-teal-900">
-            {{ actor.hq ? t('总部提交后立即生效，保留审批人。') : t('区域提交后进入待总部审批，批准后生效。') }}
+            {{
+              actor.hq
+                ? t('总部提交后立即生效，保留审批人。')
+                : t('区域提交后进入待总部审批，批准后生效。')
+            }}
           </div>
         </div>
       </div>
@@ -404,13 +415,21 @@ const mergePeople = (taskId: string) => {
         {{ success }}
       </div>
 
-      <div class="flex flex-wrap items-center justify-between gap-2 border-t border-solid border-border pt-3">
+      <div
+        class="flex flex-wrap items-center justify-between gap-2 border-t border-solid border-border pt-3"
+      >
         <span class="text-[11px] text-muted-foreground">
-          {{ blocked ? t('没有处置权限，可转交负责人或标记例外。') : t('提交后保留版本、原因与复查结果。') }}
+          {{
+            blocked
+              ? t('没有处置权限，可转交负责人或标记例外。')
+              : t('提交后保留版本、原因与复查结果。')
+          }}
         </span>
         <div class="flex gap-1.5">
           <el-button plain size="small" @click="visible = false">{{ t('取消') }}</el-button>
-          <el-button size="small" :disabled="blocked" @click="submit">{{ t('提交处置') }}</el-button>
+          <el-button size="small" :disabled="blocked" @click="submit">{{
+            t('提交处置')
+          }}</el-button>
         </div>
       </div>
     </div>

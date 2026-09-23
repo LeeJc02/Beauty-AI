@@ -1,9 +1,13 @@
 <script setup lang="ts">
-import BeautyPagePlaceholder from "../placeholder.vue"
+import { computed } from 'vue'
+import CoursewareInspectionWorkspace from './inspection-v4/CoursewareInspectionWorkspace.vue'
+import { actorForRole, useAuditRole } from './components/shared'
 
-defineOptions({ name: "BeautyAudit" })
+defineOptions({ name: 'BeautyAudit' })
+const role = useAuditRole()
+const actor = computed(() => actorForRole(role.value))
 </script>
 
 <template>
-  <BeautyPagePlaceholder title="数据审计" source="src/pages/TrainingInspection.tsx + src/pages/training-inspection/**" />
+  <CoursewareInspectionWorkspace :key="role" :read-only="Boolean(actor.readOnly)" />
 </template>

@@ -6,7 +6,7 @@
  * Vue 版由父级 `v-if` 挂载，保持同一语义。
  */
 import { computed, ref, watch } from 'vue'
-import { formatDay, taskAudienceIds, simulateTaskChange } from '@/beauty/lib/inspectionEngine'
+import { taskAudienceIds, simulateTaskChange } from '@/beauty/lib/inspectionEngine'
 import type {
   InspectionActor,
   InspectionState,
@@ -16,6 +16,7 @@ import type {
 import { useBeautyI18n } from '@/beauty/composables'
 import SimulationResultView from './SimulationResultView.vue'
 import TaskPatchEditor from './TaskPatchEditor.vue'
+import { formatDay } from './shared'
 
 defineOptions({ name: 'BeautySimulatePanel' })
 
@@ -71,7 +72,9 @@ const onOpenDisposition = () => {
         @update:patch="patch = $event"
       />
       <SimulationResultView :result="result" />
-      <div class="flex flex-wrap items-center justify-between gap-2 border-t border-solid border-border pt-3">
+      <div
+        class="flex flex-wrap items-center justify-between gap-2 border-t border-solid border-border pt-3"
+      >
         <span class="text-[11px] text-muted-foreground">
           {{ taskAudienceIds(state, task)?.length ?? 0 }} {{ t('人') }} · {{ t('截止') }}
           {{ formatDay(task.endsOn) }} · {{ t('当前版本') }} v{{ task.version }}

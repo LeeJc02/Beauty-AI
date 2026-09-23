@@ -104,10 +104,13 @@ const deltaTone = (before: number, after: number) =>
     <div class="grid gap-2 md:grid-cols-3">
       <div class="rounded-lg bg-emerald-50/70 p-2.5 ring-1 ring-emerald-200">
         <div class="flex items-center gap-1 text-[11px] font-semibold text-emerald-700">
-          <Icon icon="lucide:circle-check-big" :size="12" /> {{ t('解除') }} {{ result.resolved.length }}
+          <Icon icon="lucide:circle-check-big" :size="12" /> {{ t('解除') }}
+          {{ result.resolved.length }}
         </div>
         <ul class="mt-1 grid gap-0.5 text-[11px] text-emerald-900/80">
-          <li v-for="risk in result.resolved" :key="risk.key">{{ risk.ruleId }} · {{ risk.title }}</li>
+          <li v-for="risk in result.resolved" :key="risk.key"
+            >{{ risk.ruleId }} · {{ risk.title }}</li
+          >
           <li v-if="!result.resolved.length">{{ t('无') }}</li>
         </ul>
       </div>

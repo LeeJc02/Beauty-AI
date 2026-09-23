@@ -2,15 +2,15 @@
 /**
  * 数据审计 · Agent 对话工作台（原型 `src/pages/training-inspection/AuditConsole.tsx`）。
  *
- * 极简首屏（大标题 + 输入框 + 建议问题）→ 左右分栏：左侧对话与查询轨迹，右侧审计依据。
+ * 极简首屏（大标题 + 输入框 + 建议问题）→ 左右分栏：左侧提问、确认与操作，右侧过程、数据与报告。
  * 这一块屏只负责「问 → 查 → 汇报」，写审计记录 / 定时 / 跳档案都通过 emit 交给页面容器，
  * 组件自己既不读 store 也不跳路由。
  */
+import { computed, getCurrentInstance, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useBeautyI18n } from '@/beauty/composables'
 import {
   AUDIT_PRESETS,
   AUDIT_STEP_NARRATION,
-  AUDIT_TOOL_LIST,
   FOCUS_LABELS,
   applyClarification,
   auditContext,
@@ -21,6 +21,7 @@ import {
   planContext,
   planFor,
   runAuditTool,
+  regionFromText,
   specFor,
   type AuditContext,
   type AuditReport,
@@ -41,9 +42,13 @@ import { jakartaStamp } from './shared'
 import {
   AUDIT_STEPS,
   CLARIFY_DEFAULT,
+  artifactStageOf,
+  auditContextFor,
+  isNearBottom,
+  reportFor,
   scopeText,
-  shortHeadline,
   sleep,
+  stageShowsScope,
   toolIntentOf,
   uid,
   type ClarifyItem,
@@ -84,30 +89,16 @@ const entered = ref(false)
 /** 原型保留了换场用的 leaving 开关：进入走动画，退出是立即切换。 */
 const leaving = ref(false)
 const mobileTab = ref<'chat' | 'context'>('chat')
-const toolsOpen = ref(false)
 const pending = ref<{ question: string; ctx: AuditContext } | null>(null)
-/** 新内容出现时把底部哨兵滚进视野（页面滚动容器在上层，哨兵比滚容器可靠）。 */
-const endRef = ref<HTMLDivElement | null>(null)
-
-/** 左右面板交换：和「生成课件」同一套交互，顺序记在 localStorage（键名沿用原型）。 */
-const PANELS_SWAPPED_KEY = 'audit-console-panels-swapped'
-const readPanelsSwapped = () => {
-  try {
-    return window.localStorage.getItem(PANELS_SWAPPED_KEY) === 'true'
-  } catch {
-    /* 隐私模式下只影响本次演示 */
-    return false
-  }
-}
-const panelsSwapped = ref(readPanelsSwapped())
-const togglePanelsSwapped = () => {
-  panelsSwapped.value = !panelsSwapped.value
-  try {
-    window.localStorage.setItem(PANELS_SWAPPED_KEY, String(panelsSwapped.value))
-  } catch {
-    /* 隐私模式下只影响本次演示 */
-  }
-}
+/** 当前查询批次的口径与报告 id；旧报告仍可留在对话历史，但不会污染新批次。 */
+const activeRunCtx = ref<AuditContext | null>(null)
+const activeReportId = ref<string | null>(null)
+const activeTrailId = ref<string | null>(null)
+const actionTrailIds = ref<string[]>([])
+const artifactTab = ref<'report' | 'process'>('process')
+/** 只在用户贴近底部时跟随新内容，阅读历史时不强行抢滚动位置。 */
+const conversationRef = ref<HTMLElement | null>(null)
+const conversationPinned = ref(true)
 
 /** 取消令牌：重新开始或新流程都会 +1，旧流程在 await 之后自行退出。 */
 let runToken = 0
@@ -132,65 +123,107 @@ const baseCtx = computed(() => auditContext(props.state, props.actor, props.week
 const trails = computed(() =>
   items.value.filter((item): item is TrailItem => item.kind === 'trail')
 )
-const lastTrail = computed(() => trails.value.at(-1))
 
-const latestReport = computed<ReportItem | null>(() => {
-  for (let index = items.value.length - 1; index >= 0; index -= 1) {
-    const item = items.value[index]
-    if (item.kind === 'report') return item
-  }
-  return null
-})
+const latestReport = computed<ReportItem | null>(() => reportFor(items.value, activeReportId.value))
 
-/** 正在生效的口径：已经出过汇报就用那次汇报的口径，否则用页面当前周期。 */
-const activeCtx = computed(() => latestReport.value?.ctx ?? baseCtx.value)
+/** 正在生效的口径：补问和当前批次优先，避免显示上一轮报告的旧条件。 */
+const activeCtx = computed(() =>
+  auditContextFor(
+    baseCtx.value,
+    pending.value?.ctx ?? null,
+    activeRunCtx.value,
+    latestReport.value?.ctx ?? null
+  )
+)
+
+const trailFor = (trailId: string) =>
+  items.value.find((item): item is TrailItem => item.kind === 'trail' && item.id === trailId)
 
 const liveClarify = computed(() =>
-  items.value.find(
-    (item): item is ClarifyItem => item.kind === 'clarify' && item.index < item.questions.length
-  )
+  pending.value
+    ? items.value.find(
+        (item): item is ClarifyItem => item.kind === 'clarify' && item.index < item.questions.length
+      )
+    : undefined
 )
 
-const callCounts = computed(() => {
-  const counts = new Map<AuditToolId, number>()
-  for (const trail of trails.value)
-    for (const step of trail.steps) counts.set(step.spec.id, (counts.get(step.spec.id) ?? 0) + 1)
-  return counts
-})
+/**
+ * 右栏只放「中间产物与数据」：当前批次的查询过程 + 汇报产物。
+ * 左栏只负责交互，补问、确认、追问和操作入口都留在左边。
+ */
+const stageTrail = computed<TrailItem | null>(() => trailFor(activeTrailId.value ?? '') ?? null)
 
-/** 右栏「已经拿到的数据」：按完成顺序列出每次取数的关键指标。 */
-const dataPoints = computed(() =>
-  trails.value.flatMap((trail) =>
-    trail.steps
-      .filter((step) => step.status === 'done' && step.output)
-      .map((step) => ({
-        id: step.id,
-        title: step.spec.title,
-        headline: shortHeadline(step.output!.headline),
-        facts: step.output!.facts.slice(0, 2)
-      }))
-  )
+const stageReport = computed<ReportItem | null>(() => latestReport.value)
+
+const artifactStage = computed(() =>
+  artifactStageOf({
+    entered: entered.value,
+    pending: pending.value !== null,
+    hasTrail: Boolean(stageTrail.value),
+    hasReport: Boolean(stageReport.value)
+  })
 )
+
+/** 口径块只在取数开始后出现，避免把页面默认值当成用户确认过的条件。 */
+const scopeDenied = computed(() =>
+  Boolean(stageTrail.value?.steps.some((step) => step.error?.kind === 'permission'))
+)
+const showScope = computed(() => !scopeDenied.value && stageShowsScope(artifactStage.value))
+
+const stageKey = computed(
+  () =>
+    `${entered.value ? 'entered' : 'welcome'}-${stageTrail.value?.id ?? 'no-trail'}-${stageReport.value?.report.id ?? 'no-report'}`
+)
+
+const actionTrails = computed(() =>
+  actionTrailIds.value.flatMap((id) => {
+    const trail = trailFor(id)
+    return trail ? [trail] : []
+  })
+)
+const readyToConfirm = computed(() => Boolean(pending.value && !liveClarify.value))
+
+/** 所有业务动作都从左侧发起，并绑定当前报告的已确认口径。 */
+const runReportAction = (id: AuditToolId) => {
+  if (!stageReport.value || pending.value || running.value) return
+  if (id === 'save_inspection_record' && savedRecordId.value) return
+  if (id === 'save_schedule' && savedScheduleId.value) return
+  push({ kind: 'user', id: uid(), text: manualToolQuestion(id) })
+  void runTool(id, stageReport.value.question, stageReport.value.ctx)
+}
 
 /** 进度轨道落在哪一阶段：出过汇报 → 汇报结论；有轨迹 → 取数核对；在补问 → 确认口径。 */
 const stepIndex = computed(() => {
   if (latestReport.value) return 3
-  if (trails.value.length) return 2
-  return liveClarify.value ? 1 : 0
+  if (activeTrailId.value && trails.value.some((trail) => trail.id === activeTrailId.value))
+    return 2
+  return pending.value ? 1 : 0
 })
 
-const stepLabel = computed(() => AUDIT_STEPS[stepIndex.value])
+const stepLabel = computed(() =>
+  scopeDenied.value ? '范围不可访问' : AUDIT_STEPS[stepIndex.value]
+)
 
-/** 右栏「可以接着问」：预置问题 + 两个动作型提问（会被 toolIntentOf 识别）。 */
-const followUps = [
-  ...AUDIT_PRESETS.map((preset) => preset.question),
-  '把结论保存成审计记录',
-  '每周一早上九点自动跑这个审计'
-]
+/** 追问只负责开启新查询；报告操作单独展示。 */
+const followUps = AUDIT_PRESETS.map((preset) => preset.question)
+
+const trackConversationScroll = () => {
+  const element = conversationRef.value
+  if (!element) return
+  conversationPinned.value = isNearBottom(
+    element.scrollHeight,
+    element.scrollTop,
+    element.clientHeight
+  )
+}
 
 watch(items, () => {
-  if (!items.value.length) return
-  void nextTick(() => endRef.value?.scrollIntoView({ behavior: 'smooth', block: 'end' }))
+  if (!items.value.length || !conversationPinned.value) return
+  void nextTick(() => {
+    const element = conversationRef.value
+    if (!element || !conversationPinned.value) return
+    element.scrollTo({ top: element.scrollHeight, behavior: 'smooth' })
+  })
 })
 
 onBeforeUnmount(() => {
@@ -209,16 +242,18 @@ const taskTitleOf = (taskId: string) =>
 
 /** 按计划执行：一次「查数据 → 汇报」的完整流程。 */
 const runPlan = async (question: string, ctx: AuditContext) => {
+  activeRunCtx.value = ctx
   const token = (runToken += 1)
   busyRun = true
   running.value = true
   const current = live.value.state
   const plan = planFor(current, ctx, question)
   const trailId = uid()
+  activeTrailId.value = trailId
   push({
     kind: 'agent',
     id: uid(),
-    text: `好，按这个口径查：${scopeText(ctx)}。我边查边跟你说结果。`,
+    text: `好，按这个口径查：${scopeText(ctx)}。取数过程和结果会显示在右侧。`,
     tone: 'confirm',
     event: 'run_started'
   })
@@ -247,14 +282,23 @@ const runPlan = async (question: string, ctx: AuditContext) => {
     await sleep(90)
   }
   if (token !== runToken) return
-  push({ kind: 'agent', id: uid(), text: '查完了，先给结论：', event: 'report_completed' })
+  push({
+    kind: 'agent',
+    id: uid(),
+    text: '审查完成。请在右侧查看报告、数据出处和取数过程；需要留档或继续审查，可使用下方操作。',
+    event: 'report_completed'
+  })
+  const reportId = uid()
   push({
     kind: 'report',
-    id: uid(),
+    id: reportId,
     report: buildAuditReport(current, ctx),
     ctx,
-    question
+    question,
+    trailId
   })
+  activeReportId.value = reportId
+  artifactTab.value = 'report'
   busyRun = false
   running.value = false
 }
@@ -269,6 +313,7 @@ const runTool = async (id: AuditToolId, question?: string, override?: AuditConte
   busyRun = true
   running.value = true
   const trailId = uid()
+  actionTrailIds.value = [...actionTrailIds.value, trailId]
   if (id !== 'save_inspection_record' && id !== 'save_schedule') {
     push(
       { kind: 'user', id: uid(), text: manualToolQuestion(id) },
@@ -313,12 +358,18 @@ const runTool = async (id: AuditToolId, question?: string, override?: AuditConte
       reportTitle: report.title,
       verdict: report.verdict,
       findingCount: report.findings.length,
-      taskCount: current.tasks.filter((task) => task.status !== 'disabled').length,
+      taskCount: Number.parseInt(
+        report.metrics.find((metric) => metric.label === '覆盖任务')?.value ?? '0',
+        10
+      ),
       ruleVersion: report.ruleVersion,
       traceIds: [
         ...new Set([
-          ...trails.value.flatMap((trail) =>
-            trail.steps.flatMap((trailStep) => (trailStep.output ? [trailStep.output.traceId] : []))
+          ...[...(stageTrail.value ? [stageTrail.value] : []), ...actionTrails.value].flatMap(
+            (trail) =>
+              trail.steps.flatMap((trailStep) =>
+                trailStep.output ? [trailStep.output.traceId] : []
+              )
           ),
           output.traceId
         ])
@@ -326,6 +377,10 @@ const runTool = async (id: AuditToolId, question?: string, override?: AuditConte
     }
     emit('save-audit-record', record)
     savedRecordId.value = record.id
+    output.headline = `本地审计记录 ${record.id} 已保存：${record.findingCount} 条结论。`
+    output.facts = output.facts.map((fact) =>
+      fact.label === '记录编号' ? { ...fact, value: record.id } : fact
+    )
   }
   if (id === 'save_schedule') {
     const existing = (current.auditSchedules ?? []).find(
@@ -355,27 +410,46 @@ const runTool = async (id: AuditToolId, question?: string, override?: AuditConte
     }
     emit('save-audit-schedule', schedule)
     savedScheduleId.value = schedule.id
+    output.facts = output.facts.map((fact) =>
+      fact.label === '订阅编号' ? { ...fact, value: schedule.id } : fact
+    )
+    if (output.table) {
+      output.table.rows = output.table.rows.map((row) =>
+        row[0] === '时间范围'
+          ? [row[0], ctx.weeks.map((week) => `${week} 起 7 天`).join('、')]
+          : row
+      )
+    }
   }
 
+  patch({ ...step, status: 'done', output })
   busyRun = false
   running.value = false
+  push({
+    kind: 'agent',
+    id: uid(),
+    text: `${spec.title}完成。回执可在右侧「取数过程」查看；当前仅保存于本地演示环境。`,
+    tone: 'confirm'
+  })
   emit('toast', `${spec.title}完成：${output.headline}`)
 }
 
 const pushPermissionError = (regionName: string, visible: string[], question: string) => {
   const spec = specFor('query_scope', live.value.state, baseCtx.value)
+  const trailId = uid()
+  activeTrailId.value = trailId
   push(
     { kind: 'user', id: uid(), text: question },
     {
       kind: 'agent',
       id: uid(),
-      text: `你问的${regionName}不在当前账号的数据范围里，ADM 的权限校验直接拒了这次查询，我不会绕过去取数。可以问${visible.join('、')}，或者换总部账号看${regionName}。`,
+      text: `你问的${regionName}不在当前账号的数据范围里，本地演示的权限校验已拒绝这次查询，不会读取范围外的数据。可以问${visible.join('、')}，或者换总部账号看${regionName}。`,
       event: 'tool_call_completed',
       tone: 'error'
     },
     {
       kind: 'trail',
-      id: uid(),
+      id: trailId,
       steps: [
         {
           id: uid(),
@@ -402,6 +476,70 @@ const ask = async (raw: string) => {
   input.value = ''
   const { state: current, week: currentWeek, today: currentToday, actor: currentActor } = live.value
   const initial = auditContext(current, currentActor, currentWeek, currentToday)
+  const toolIntent = toolIntentOf(question)
+  if (toolIntent) {
+    const denied = outOfScopeRegion(current, currentActor, question)
+    if (denied) {
+      push(
+        { kind: 'user', id: uid(), text: question },
+        {
+          kind: 'agent',
+          id: uid(),
+          text: `${denied.name}不在当前账号的数据范围内，未保存任何记录或定时条件。请改用当前报告的范围。`,
+          tone: 'error'
+        }
+      )
+      return
+    }
+    if (!latestReport.value) {
+      push(
+        { kind: 'user', id: uid(), text: question },
+        {
+          kind: 'agent',
+          id: uid(),
+          text: '请先完成一次审查，再保存报告或设置定时条件。',
+          tone: 'note'
+        }
+      )
+      return
+    }
+    const requestedRegion = regionFromText(current, currentActor, question)
+    const reportCtx = latestReport.value.ctx
+    if (
+      (requestedRegion && !reportCtx.regionIds.includes(requestedRegion.id)) ||
+      (requestedRegion && reportCtx.regionIds.length !== 1) ||
+      /全国|全部区域|所有区域|本周|上周|下周|本月|品类|工时|完成率|数据完整/.test(question)
+    ) {
+      push(
+        { kind: 'user', id: uid(), text: question },
+        {
+          kind: 'agent',
+          id: uid(),
+          text: '操作未执行。保存和定时操作只绑定当前报告；如需更改范围、周期或关注方面，请先发起新的审查。沿用当前报告请点击下方操作按钮。',
+          tone: 'note'
+        }
+      )
+      return
+    }
+    if (
+      (toolIntent === 'save_inspection_record' && savedRecordId.value) ||
+      (toolIntent === 'save_schedule' && savedScheduleId.value)
+    ) {
+      push({ kind: 'agent', id: uid(), text: '本次操作已保存，无需重复提交。', tone: 'note' })
+      return
+    }
+    push({ kind: 'user', id: uid(), text: question })
+    await runTool(toolIntent, question, latestReport.value.ctx)
+    return
+  }
+  // 新批次不继承上次报告、轨迹、保存标记或操作回执。
+  activeReportId.value = null
+  activeTrailId.value = null
+  actionTrailIds.value = []
+  savedRecordId.value = null
+  savedScheduleId.value = null
+  artifactTab.value = 'process'
+  activeRunCtx.value = initial
   const blocked = outOfScopeRegion(current, currentActor, question)
   if (blocked) {
     pushPermissionError(
@@ -414,12 +552,7 @@ const ask = async (raw: string) => {
     return
   }
   const ctx = planContext(current, initial, question)
-  const toolIntent = toolIntentOf(question)
-  if (toolIntent) {
-    push({ kind: 'user', id: uid(), text: question })
-    await runTool(toolIntent, question, ctx)
-    return
-  }
+  activeRunCtx.value = ctx
   const questions = clarificationsFor(current, ctx, question)
   if (questions.length) {
     push(
@@ -436,15 +569,16 @@ const ask = async (raw: string) => {
     return
   }
   push({ kind: 'user', id: uid(), text: question })
-  await runPlan(question, ctx)
+  pending.value = { question, ctx }
 }
 
-/** 回答一道补问：答完还有下一题就继续问，否则拿最终口径开跑。 */
+/** 补齐问题后先展示条件确认卡，不自动取数。 */
 const answerClarify = async (item: ClarifyItem, index: number, value: string, label: string) => {
   const currentPending = pending.value
   if (!currentPending) return
   const question = item.questions[index]
   const nextCtx = applyClarification(live.value.state, currentPending.ctx, question.field, value)
+  activeRunCtx.value = nextCtx
   const nextIndex = index + 1
   items.value = items.value.map((entry) =>
     entry.kind === 'clarify' && entry.id === item.id
@@ -460,8 +594,25 @@ const answerClarify = async (item: ClarifyItem, index: number, value: string, la
     pending.value = { question: currentPending.question, ctx: nextCtx }
     return
   }
+  pending.value = { question: currentPending.question, ctx: nextCtx }
+}
+
+const confirmScope = async () => {
+  if (!readyToConfirm.value || !pending.value || busyRun) return
+  const { question, ctx } = pending.value
   pending.value = null
-  await runPlan(currentPending.question, nextCtx)
+  push({ kind: 'user', id: uid(), text: '确认条件，开始审查' })
+  await runPlan(question, ctx)
+}
+
+const reviseScope = () => {
+  if (!pending.value) return
+  input.value = pending.value.question
+  items.value = items.value.filter(
+    (item) => item.kind !== 'clarify' || item.index >= item.questions.length
+  )
+  pending.value = null
+  activeRunCtx.value = null
 }
 
 const skipClarify = (item: ClarifyItem, index: number) => {
@@ -524,7 +675,10 @@ const submit = (raw: string) => {
 }
 
 const onEntryKeydown = (event: KeyboardEvent) => {
-  if (event.key === 'Enter' && !event.shiftKey) void startAudit(entryText.value)
+  if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
+    event.preventDefault()
+    void startAudit(entryText.value)
+  }
 }
 
 const startAudit = async (raw: string) => {
@@ -547,11 +701,27 @@ const restart = () => {
   entryText.value = ''
   input.value = ''
   mobileTab.value = 'chat'
+  activeRunCtx.value = null
+  activeReportId.value = null
+  activeTrailId.value = null
+  actionTrailIds.value = []
+  artifactTab.value = 'process'
+  conversationPinned.value = true
 }
+
+/** 角色、周期或日期变化时清空会话，防止旧账号的范围与报告短暂泄露。 */
+watch(
+  () => [props.actor.id, props.actor.name, props.actor.roleLabel, props.week, props.today],
+  () => restart(),
+  { flush: 'sync' }
+)
 
 /** 导出纯文本报告：和原型一样用 Blob + 临时 a 标签，不引入额外依赖。 */
 const exportReport = (report: AuditReport) => {
-  const steps = lastTrail.value?.steps ?? []
+  const reportItem = items.value.find(
+    (item): item is ReportItem => item.kind === 'report' && item.report === report
+  )
+  const steps = reportItem ? (trailFor(reportItem.trailId)?.steps ?? []) : []
   const lines = [
     `${report.title}（SalesBoost AI 数据审计）`,
     `生成时间：${jakartaStamp(new Date().toISOString())} · 数据版本 v${props.state.revision} · 规则集 ${report.ruleVersion}`,
@@ -629,7 +799,91 @@ const exportReport = (report: AuditReport) => {
 
 <template>
   <div class="cw-root audit-console-root" data-i18n-skip="true">
-    <div class="studio" :class="leaving ? 'cw-swap-out' : 'cw-swap-in'">
+    <div v-if="!entered" class="audit-entry-page cw-swap-in">
+      <div class="audit-entry-card">
+        <aside class="audit-entry-story">
+          <div class="audit-entry-intro">
+            <span class="cw-entry-badge">
+              <Icon icon="lucide:shield-check" :size="14" /> {{ t('数据审计 Agent') }}
+            </span>
+            <h1>{{ t('想问什么，直接说。') }}</h1>
+            <p>{{
+              t('我会先确认查什么、哪个范围、哪段时间，再去取数，最后给你一段带数据出处的汇报。')
+            }}</p>
+          </div>
+          <div class="audit-entry-roadmap" aria-label="审计流程">
+            <div class="audit-entry-roadmap__step">
+              <span class="audit-entry-roadmap__num">01</span>
+              <div
+                ><strong>{{ t('你说一句') }}</strong
+                ><small>{{ t('直接说你想知道什么') }}</small></div
+              >
+            </div>
+            <div class="audit-entry-roadmap__step">
+              <span class="audit-entry-roadmap__num">02</span>
+              <div
+                ><strong>{{ t('我确认口径') }}</strong
+                ><small>{{ t('范围、周期和关注方面') }}</small></div
+              >
+            </div>
+            <div class="audit-entry-roadmap__step">
+              <span class="audit-entry-roadmap__num">03</span>
+              <div
+                ><strong>{{ t('取数后给你汇报') }}</strong
+                ><small>{{ t('每个数字都能追到出处') }}</small></div
+              >
+            </div>
+          </div>
+        </aside>
+        <main class="audit-entry-editor">
+          <div class="audit-entry-prompt-header">
+            <label for="audit-entry-question">{{ t('这次想查什么？') }}</label>
+            <span>{{ entryText.length }}/500</span>
+          </div>
+          <textarea
+            id="audit-entry-question"
+            v-model="entryText"
+            class="cw-textarea"
+            maxlength="500"
+            :placeholder="t('例如：最近培训情况怎么样？哪个区域工时压力最大？')"
+            @keydown="onEntryKeydown"
+          ></textarea>
+          <div class="audit-entry-examples">
+            <span class="cw-entry-examples-label"
+              ><Icon icon="lucide:sparkles" :size="13" /> {{ t('可以这样问:') }}</span
+            >
+            <button
+              v-for="preset in AUDIT_PRESETS"
+              :key="preset.id"
+              type="button"
+              class="cw-entry-example-btn"
+              @click="void startAudit(preset.question)"
+            >
+              {{ t(preset.label) }}<Icon icon="lucide:arrow-up-right" :size="12" />
+            </button>
+          </div>
+          <div class="audit-entry-footer">
+            <div class="audit-entry-meta">
+              <AuditChip
+                ><Icon icon="lucide:database" :size="11" /> {{ baseCtx.scopeLabel }}</AuditChip
+              >
+              <AuditChip>{{ t('周期') }} {{ props.week.slice(5) }}</AuditChip>
+              <AuditChip>{{ t('本地演示 · 未连接业务库') }}</AuditChip>
+            </div>
+            <button
+              type="button"
+              class="cw-primary"
+              :disabled="!entryText.trim() || leaving"
+              @click="void startAudit(entryText)"
+            >
+              <Icon icon="lucide:sparkles" :size="15" /> {{ t('开始审计') }}
+              <Icon icon="lucide:arrow-right" :size="15" />
+            </button>
+          </div>
+        </main>
+      </div>
+    </div>
+    <div v-else class="studio" :class="leaving ? 'cw-swap-out' : 'cw-swap-in'">
       <header class="studio__header">
         <div class="studio__header-left">
           <div class="studio__identity">
@@ -697,15 +951,12 @@ const exportReport = (report: AuditReport) => {
           :class="{ active: mobileTab === 'context' }"
           @click="mobileTab = 'context'"
         >
-          {{ t('审计依据') }}
+          {{ t('数据与产物') }}
         </button>
       </div>
 
       <div class="studio__body">
-        <div
-          class="studio__conversation"
-          :class="[mobileTab !== 'chat' ? 'mobile-hidden' : '', panelsSwapped ? 'is-swapped' : '']"
-        >
+        <div class="studio__conversation" :class="{ 'mobile-hidden': mobileTab !== 'chat' }">
           <div class="studio__coach-bar">
             <div class="studio__coach-profile">
               <span class="studio__coach-avatar">
@@ -718,61 +969,10 @@ const exportReport = (report: AuditReport) => {
                 </span>
               </div>
             </div>
-            <span class="studio__round-pill">{{ stepLabel }}</span>
+            <span class="studio__round-pill">{{ t('交互区') }} · {{ stepLabel }}</span>
           </div>
 
-          <div class="audit-thread">
-            <div v-if="!entered" class="audit-entry-inline">
-              <span class="cw-entry-badge">
-                <Icon icon="lucide:shield-check" :size="14" /> {{ t('数据审计 Agent') }}
-              </span>
-              <h1>{{ t('想问什么，直接说。') }}</h1>
-              <p>
-                {{
-                  t(
-                    '我会先跟你确认查什么、哪个范围、哪段时间，再去取数，最后给你一段带数据出处的汇报。'
-                  )
-                }}
-              </p>
-              <textarea
-                v-model="entryText"
-                class="cw-textarea"
-                :placeholder="t('例如：最近培训情况怎么样？哪个区域工时压力最大？')"
-                @keydown="onEntryKeydown"
-              ></textarea>
-              <div class="audit-entry-examples">
-                <span class="cw-entry-examples-label">
-                  <Icon icon="lucide:sparkles" :size="13" /> {{ t('可以这样问:') }}
-                </span>
-                <button
-                  v-for="preset in AUDIT_PRESETS"
-                  :key="preset.id"
-                  type="button"
-                  class="cw-entry-example-btn"
-                  @click="void startAudit(preset.question)"
-                >
-                  {{ t(preset.label) }}<Icon icon="lucide:arrow-right" :size="12" />
-                </button>
-              </div>
-              <div class="audit-entry-actions">
-                <div class="audit-card__head">
-                  <AuditChip>
-                    <Icon icon="lucide:database" :size="11" /> {{ baseCtx.scopeLabel }}
-                  </AuditChip>
-                  <AuditChip>{{ t('周期') }} {{ props.week.slice(5) }}</AuditChip>
-                </div>
-                <button
-                  type="button"
-                  class="cw-primary"
-                  :disabled="!entryText.trim() || leaving"
-                  @click="void startAudit(entryText)"
-                >
-                  <Icon icon="lucide:sparkles" :size="15" /> {{ t('开始审计') }}
-                  <Icon icon="lucide:arrow-right" :size="15" />
-                </button>
-              </div>
-            </div>
-
+          <div ref="conversationRef" class="audit-thread" @scroll.passive="trackConversationScroll">
             <template v-if="entered">
               <template v-for="item in items" :key="item.id">
                 <!-- 用户提问 -->
@@ -797,7 +997,6 @@ const exportReport = (report: AuditReport) => {
                   <div class="studio__bubble-content">
                     <div class="studio__speaker">
                       <span>{{ t('审计 Agent') }}</span>
-                      <AuditChip v-if="item.event" :event="item.event" />
                     </div>
                     <p class="studio__message">{{ item.text }}</p>
                   </div>
@@ -811,7 +1010,6 @@ const exportReport = (report: AuditReport) => {
                   <div class="studio__bubble-content">
                     <div class="studio__speaker">
                       <span>{{ t('审计 Agent') }}</span>
-                      <AuditChip event="clarification_required" />
                     </div>
                     <AuditClarifyCard
                       :item="item"
@@ -823,36 +1021,100 @@ const exportReport = (report: AuditReport) => {
                   </div>
                 </div>
 
-                <!-- 查询过程 -->
-                <div v-else-if="item.kind === 'trail'" class="studio__coach-bubble-wrap">
-                  <div class="studio__bubble-avatar">
-                    <Icon icon="lucide:wrench" :size="13" />
-                  </div>
-                  <div class="studio__bubble-content">
-                    <AuditTrailCard :item="item" :live="running && item.id === lastTrail?.id" />
-                  </div>
-                </div>
-
-                <!-- 汇报卡 -->
-                <div v-else class="studio__coach-bubble-wrap">
-                  <div class="studio__bubble-avatar">
-                    <Icon icon="lucide:file-text" :size="13" />
-                  </div>
-                  <div class="studio__bubble-content">
-                    <AuditBriefingCard
-                      :report="item.report"
-                      :steps="lastTrail?.steps ?? []"
-                      :busy="running"
-                      :task-title-of="taskTitleOf"
-                      @focus-task="emit('focus-task', $event)"
-                      @export="exportReport"
-                      @run-tool="(id) => void runTool(id, undefined, item.ctx)"
-                    />
-                  </div>
-                </div>
+                <!-- 查询过程与汇报产物都在右栏；左栏只说人话，不抢产物 -->
               </template>
             </template>
-            <div ref="endRef"></div>
+            <section v-if="readyToConfirm" class="audit-confirm-panel" aria-label="确认审查条件">
+              <strong>{{ t('确认后开始审查') }}</strong>
+              <p>{{ t('核对本次条件；开始后只读，修改条件将创建新一轮审查。') }}</p>
+              <dl>
+                <div
+                  ><dt>{{ t('范围') }}</dt
+                  ><dd>{{ activeCtx.scopeLabel }}</dd></div
+                >
+                <div
+                  ><dt>{{ t('周期') }}</dt
+                  ><dd>{{
+                    activeCtx.weeks.map((week) => `${week.slice(5)} 起 7 天`).join('、')
+                  }}</dd></div
+                >
+                <div
+                  ><dt>{{ t('关注方面') }}</dt
+                  ><dd>{{ t(FOCUS_LABELS[activeCtx.focus]) }}</dd></div
+                >
+                <div
+                  ><dt>{{ t('品类') }}</dt
+                  ><dd>{{ activeCtx.categories.join('、') || t('全部品类') }}</dd></div
+                >
+              </dl>
+              <div class="audit-actions">
+                <button type="button" class="cw-primary" @click="confirmScope">{{
+                  t('确认并开始审查')
+                }}</button>
+                <button type="button" class="cw-ghost" @click="reviseScope">{{
+                  t('修改问题')
+                }}</button>
+              </div>
+            </section>
+
+            <section
+              v-if="stageReport && !pending"
+              class="audit-report-controls"
+              aria-label="报告操作"
+            >
+              <div class="audit-section-title">{{ t('下一步操作') }}</div>
+              <div class="audit-actions">
+                <button
+                  type="button"
+                  class="cw-primary"
+                  :disabled="running || Boolean(savedRecordId)"
+                  @click="runReportAction('save_inspection_record')"
+                >
+                  <Icon icon="lucide:archive" :size="14" />
+                  {{ savedRecordId ? t('已保存本地记录') : t('保存审计记录') }}
+                </button>
+                <button
+                  type="button"
+                  class="cw-ghost"
+                  :disabled="running || Boolean(savedScheduleId)"
+                  @click="runReportAction('save_schedule')"
+                >
+                  <Icon icon="lucide:calendar-clock" :size="14" />
+                  {{ savedScheduleId ? t('已保存定时条件') : t('保存每周一定时条件') }}
+                </button>
+                <button
+                  type="button"
+                  class="cw-ghost"
+                  :disabled="running"
+                  @click="exportReport(stageReport.report)"
+                >
+                  <Icon icon="lucide:download" :size="14" /> {{ t('导出报告') }}
+                </button>
+              </div>
+              <p>{{ t('仅本地演示留档；定时条件不会启动后台调度，也不会发送飞书。') }}</p>
+            </section>
+
+            <div aria-hidden="true"></div>
+          </div>
+
+          <!-- 继续追问属于交互，留在左栏 -->
+          <div
+            v-if="entered && !running && !pending"
+            class="audit-followups"
+            :aria-label="t('可以接着问')"
+          >
+            <span class="audit-followups__label">
+              <Icon icon="lucide:sparkles" :size="12" /> {{ t('可以接着问') }}
+            </span>
+            <button
+              v-for="question in followUps"
+              :key="question"
+              type="button"
+              class="audit-followup"
+              @click="void ask(question)"
+            >
+              {{ t(question) }}
+            </button>
           </div>
 
           <div class="audit-composer">
@@ -860,18 +1122,21 @@ const exportReport = (report: AuditReport) => {
               <input
                 v-model="input"
                 class="audit-input"
-                :disabled="running"
+                :disabled="running || readyToConfirm"
+                aria-label="继续提问或回答确认问题"
                 :placeholder="
-                  liveClarify
-                    ? t('也可以直接打字回答这一步，例如「上周」「南区」「全部品类」')
-                    : t('继续追问，例如：那南区呢？哪个区域压力最大？')
+                  readyToConfirm
+                    ? t('请先确认条件，或点击「修改问题」')
+                    : liveClarify
+                      ? t('也可以直接打字回答这一步，例如「上周」「南区」「全部品类」')
+                      : t('继续追问，例如：那南区呢？哪个区域压力最大？')
                 "
-                @keydown.enter="submit(input)"
+                @keydown.enter="!$event.isComposing && submit(input)"
               />
               <button
                 type="button"
                 class="cw-primary"
-                :disabled="running || !input.trim()"
+                :disabled="running || readyToConfirm || !input.trim()"
                 @click="submit(input)"
               >
                 <Icon v-if="running" icon="lucide:loader-2" :size="14" class="cw-spin" />
@@ -882,38 +1147,49 @@ const exportReport = (report: AuditReport) => {
           </div>
         </div>
 
-        <!-- 中间：交换左右面板（顺序会被记住，窄屏双栏叠起来时不显示） -->
-        <button
-          type="button"
-          class="studio__swap-panels"
-          aria-label="交换左右面板"
-          title="交换左右面板"
-          @click="togglePanelsSwapped"
-        >
-          <Icon icon="lucide:arrow-left-right" :size="16" />
-        </button>
-
-        <aside
-          class="studio__draft"
-          :class="[
-            mobileTab !== 'context' ? 'mobile-hidden' : '',
-            panelsSwapped ? 'is-swapped' : ''
-          ]"
-        >
+        <aside class="studio__draft" :class="{ 'mobile-hidden': mobileTab !== 'context' }">
           <header class="studio__draft-header">
             <div class="studio__draft-title">
               <span class="studio__draft-icon">
-                <Icon icon="lucide:database" :size="15" />
+                <Icon icon="lucide:file-text" :size="15" />
               </span>
-              <h2>{{ t('审计依据') }}</h2>
+              <h2>{{ t('数据与产物') }}</h2>
             </div>
-            <span class="studio__canvas-badge">{{ t('只读') }}</span>
+            <span class="studio__canvas-badge">{{ t('本地演示 · 只读业务数据') }}</span>
           </header>
           <div
-            :key="`${entered ? 'entered' : 'welcome'}-${latestReport?.report.id ?? dataPoints.length}`"
-            class="studio__document audit-artifact-stage"
+            v-if="stageTrail || stageReport"
+            class="audit-artifact-tabs"
+            role="tablist"
+            aria-label="审查产物"
           >
-            <div class="audit-rail-block">
+            <button
+              type="button"
+              role="tab"
+              :aria-selected="artifactTab === 'report'"
+              :disabled="!stageReport"
+              @click="artifactTab = 'report'"
+            >
+              <Icon icon="lucide:file-check-2" :size="14" /> {{ t('审查报告') }}
+            </button>
+            <button
+              type="button"
+              role="tab"
+              :aria-selected="artifactTab === 'process'"
+              @click="artifactTab = 'process'"
+            >
+              <Icon icon="lucide:list-checks" :size="14" /> {{ t('取数过程') }}
+              <span v-if="stageTrail"
+                >{{ stageTrail.steps.filter((step) => step.status === 'done').length }}/{{
+                  stageTrail.steps.length
+                }}</span
+              >
+              <span v-if="actionTrails.length">· {{ actionTrails.length }} {{ t('条回执') }}</span>
+            </button>
+          </div>
+          <div :key="stageKey" class="studio__document audit-artifact-stage">
+            <!-- 口径只在取数开始后出现，且只列用户确认过的条件 -->
+            <div v-if="showScope" class="audit-rail-block">
               <span class="audit-section-title">{{ t('这次查了什么') }}</span>
               <div class="audit-rail-row">
                 <span>{{ t('范围') }}</span>
@@ -921,11 +1197,13 @@ const exportReport = (report: AuditReport) => {
               </div>
               <div class="audit-rail-row">
                 <span>{{ t('周期') }}</span>
-                <strong>{{ activeCtx.week.slice(5) }} {{ t('起 7 天') }}</strong>
+                <strong>{{
+                  activeCtx.weeks.map((week) => `${week.slice(5)} 起 7 天`).join('、')
+                }}</strong>
               </div>
               <div class="audit-rail-row">
                 <span>{{ t('关注方面') }}</span>
-                <strong>{{ latestReport ? t(FOCUS_LABELS[activeCtx.focus]) : t('待确认') }}</strong>
+                <strong>{{ t(FOCUS_LABELS[activeCtx.focus]) }}</strong>
               </div>
               <div class="audit-rail-row">
                 <span>{{ t('品类') }}</span>
@@ -935,113 +1213,62 @@ const exportReport = (report: AuditReport) => {
                   }}
                 </strong>
               </div>
-              <div class="audit-rail-row">
-                <span>{{ t('数据版本') }}</span>
-                <strong>v{{ props.state.revision }}</strong>
-              </div>
-              <div class="audit-rail-row">
-                <span>{{ t('规则集') }}</span>
-                <strong>v{{ props.state.policy.version }}{{ t('（A–G）') }}</strong>
-              </div>
-              <div class="audit-rail-row">
-                <span>{{ t('单日承受线') }}</span>
-                <strong>{{ props.state.policy.dailyLimitMinutes }} {{ t('分钟') }}</strong>
-              </div>
-              <div class="audit-rail-row">
-                <span>{{ t('最近审计') }}</span>
-                <strong>
-                  {{ props.state.lastRunAt ? jakartaStamp(props.state.lastRunAt) : t('尚未运行') }}
-                </strong>
-              </div>
             </div>
 
-            <div class="audit-rail-block" style="margin-top: 12px">
-              <span class="audit-section-title">{{ t('已经拿到的数据') }}</span>
-              <template v-if="dataPoints.length">
-                <div v-for="point in dataPoints" :key="point.id" class="audit-datapoint">
-                  <span class="audit-datapoint__title">{{ point.title }}</span>
-                  <span class="audit-datapoint__facts">
-                    <AuditChip v-for="fact in point.facts" :key="fact.label" :title="fact.hint">
-                      {{ fact.label }} {{ fact.value }}
-                    </AuditChip>
-                  </span>
-                  <span class="audit-datapoint__headline">{{ point.headline }}</span>
-                </div>
-              </template>
-              <span v-else class="audit-tool-row__desc">
-                {{ t('还没有取数。Agent 每查完一步，关键数字会出现在这里。') }}
-              </span>
-            </div>
+            <!-- 中间产物：每一步取到的数据（可展开看明细表） -->
+            <AuditTrailCard
+              v-if="stageTrail"
+              v-show="artifactTab === 'process'"
+              class="audit-stage-block"
+              :item="stageTrail"
+              :live="running"
+            />
 
-            <div class="audit-rail-block" style="margin-top: 12px">
-              <span class="audit-section-title">{{ t('可以接着问') }}</span>
-              <button
-                v-for="question in followUps"
-                :key="question"
-                type="button"
-                class="studio__text-button"
-                style="padding-left: 0; text-align: left"
-                :disabled="running || pending !== null"
-                @click="void ask(question)"
-              >
-                <Icon icon="lucide:play-circle" :size="12" /> {{ t(question) }}
-              </button>
-            </div>
+            <!-- 产物：结论、图表与明细 -->
+            <AuditBriefingCard
+              v-if="stageReport"
+              v-show="artifactTab === 'report'"
+              :key="stageReport.id"
+              class="audit-stage-block"
+              :report="stageReport.report"
+              :steps="trailFor(stageReport.trailId)?.steps ?? []"
+              :task-title-of="taskTitleOf"
+              @focus-task="emit('focus-task', $event)"
+            />
 
-            <div class="audit-rail-block" style="margin-top: 12px">
-              <button type="button" class="audit-rail-toggle" @click="toolsOpen = !toolsOpen">
-                <span class="audit-section-title">
-                  {{ t('白名单工具') }}（{{ AUDIT_TOOL_LIST.length }}）
-                </span>
-                <Icon
-                  :icon="toolsOpen ? 'lucide:chevron-down' : 'lucide:chevron-right'"
-                  :size="13"
-                />
-              </button>
-              <template v-if="toolsOpen">
-                <span class="audit-tool-row__desc">
-                  {{ t('只有登记过的工具可以被调用，没有「执行任意 SQL」这类入口。') }}
-                </span>
-                <button
-                  v-for="tool in AUDIT_TOOL_LIST"
-                  :key="tool.id"
-                  type="button"
-                  class="audit-tool-row"
-                  :disabled="running"
-                  :title="`${tool.desc}｜${t('权限码')} ${tool.permission}`"
-                  @click="void runTool(tool.id)"
-                >
-                  <span class="audit-tool-row__head">
-                    <span class="audit-tool-name">{{ tool.name }}</span>
-                    <AuditChip :tone="tool.owner === 'adm' ? 'audit-chip--accent' : ''">
-                      {{ tool.owner === 'adm' ? 'ADM' : 'SUP' }}
-                    </AuditChip>
-                    <AuditChip v-if="callCounts.get(tool.id)" tone="audit-chip--accent">
-                      ×{{ callCounts.get(tool.id) }}
-                    </AuditChip>
-                  </span>
-                  <span class="audit-tool-row__desc">{{ tool.title }}</span>
-                </button>
-              </template>
-            </div>
+            <template v-if="actionTrails.length">
+              <span v-show="artifactTab === 'process'" class="audit-section-title">{{
+                t('操作回执 · 本地演示')
+              }}</span>
+              <AuditTrailCard
+                v-for="trail in actionTrails"
+                v-show="artifactTab === 'process'"
+                :key="trail.id"
+                :item="trail"
+                :live="running"
+              />
+            </template>
 
-            <div class="audit-error audit-error--permission" style="margin-top: 12px">
-              <Icon icon="lucide:alert-triangle" :size="11" />
+            <div v-if="scopeDenied" class="audit-stage-empty">
+              <Icon icon="lucide:shield-alert" :size="18" />
+              <strong>{{ t('范围不可访问，未取数') }}</strong>
+              <span>{{ t('请在左侧改用当前账号可见的范围重新提问。') }}</span>
+            </div>
+            <div v-else-if="artifactStage === 'clarifying'" class="audit-stage-empty">
+              <Icon icon="lucide:key-round" :size="18" />
+              <strong>{{ t('还在确认口径') }}</strong>
               <span>
                 {{
                   t(
-                    'Agent 只读业务数据并按规则找问题，不修改培训任务、人员、组织与成绩；飞书由 ADM 在发送前再校验接收人权限。'
+                    '请在左侧确认范围、周期和关注方面。确认后，这里将显示取数过程、证据和审查报告。'
                   )
                 }}
               </span>
             </div>
-          </div>
-          <div class="studio__composer">
-            <div class="studio__composer-actions">
-              <span class="studio__hint">
-                <Icon icon="lucide:shield-check" :size="13" />
-                {{ t('结论都能追到规则编号与数据出处，处置需要人工确认。') }}
-              </span>
+            <div v-else-if="artifactStage === 'idle'" class="audit-stage-empty">
+              <Icon icon="lucide:file-text" :size="18" />
+              <strong>{{ t('这里放取数结果') }}</strong>
+              <span>{{ t('你说一句要查什么，我就把取数过程、关键数字和结论放在这里。') }}</span>
             </div>
           </div>
         </aside>

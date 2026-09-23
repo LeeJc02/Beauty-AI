@@ -46,7 +46,9 @@ const barHeight = (minutes: number) => `${Math.round((minutes / peak.value) * 10
           </span>
         </span>
         <span class="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
-          <span class="text-foreground">{{ t('本周') }} {{ person.plannedMinutes }} {{ t('分钟') }}</span>
+          <span class="text-foreground"
+            >{{ t('本周') }} {{ person.plannedMinutes }} {{ t('分钟') }}</span
+          >
           <span class="text-muted-foreground">{{ person.taskCount }} {{ t('项任务') }}</span>
           <span class="text-rose-600">
             {{ t('超出容量') }} {{ person.excessMinutes }} {{ t('分钟') }}
@@ -57,12 +59,13 @@ const barHeight = (minutes: number) => `${Math.round((minutes / peak.value) * 10
         </span>
       </span>
     </button>
-    <div
-      v-if="open"
-      class="grid gap-3 border-t border-solid border-border/70 px-3 pt-3 pb-3"
-    >
+    <div v-if="open" class="grid gap-3 border-t border-solid border-border/70 px-3 pt-3 pb-3">
       <div class="flex items-end gap-1.5">
-        <div v-for="day in person.days" :key="day.day" class="grid flex-1 justify-items-center gap-1">
+        <div
+          v-for="day in person.days"
+          :key="day.day"
+          class="grid flex-1 justify-items-center gap-1"
+        >
           <div class="flex h-16 w-full items-end rounded bg-background">
             <div
               class="w-full rounded"

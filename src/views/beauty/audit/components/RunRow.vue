@@ -132,7 +132,9 @@ const changes = computed(() => [
   }))
 ])
 
-const preview = computed(() => anomalies.value.slice(0, 3).map((result) => taskTitle(result.taskId)))
+const preview = computed(() =>
+  anomalies.value.slice(0, 3).map((result) => taskTitle(result.taskId))
+)
 
 const anomalySummary = computed(() =>
   anomalies.value.length

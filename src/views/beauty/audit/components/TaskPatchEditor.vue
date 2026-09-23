@@ -217,7 +217,11 @@ const onReminder = (event: Event) =>
     <div class="grid grid-cols-2 gap-3 md:grid-cols-4">
       <div>
         <div :class="FIELD_LABEL_CLASS">{{ t('频次单位') }}</div>
-        <select :class="[FIELD_CLASS, 'w-full']" :value="frequency?.unit ?? 'once'" @change="onFrequencyUnit">
+        <select
+          :class="[FIELD_CLASS, 'w-full']"
+          :value="frequency?.unit ?? 'once'"
+          @change="onFrequencyUnit"
+        >
           <option v-for="unit in frequencyOptions" :key="unit" :value="unit">
             {{ t(FREQUENCY_LABELS[unit]) }}
           </option>
@@ -259,7 +263,11 @@ const onReminder = (event: Event) =>
           type="number"
           min="1"
           max="1440"
-          :value="patch.minutes === undefined ? (taskOccurrenceMinutes(task) ?? '') : (patch.minutes ?? '')"
+          :value="
+            patch.minutes === undefined
+              ? (taskOccurrenceMinutes(task) ?? '')
+              : (patch.minutes ?? '')
+          "
           @input="onMinutes"
         />
       </div>
@@ -277,7 +285,11 @@ const onReminder = (event: Event) =>
       </div>
       <div>
         <div :class="FIELD_LABEL_CLASS">{{ t('任务状态') }}</div>
-        <select :class="[FIELD_CLASS, 'w-full']" :value="patch.status ?? task.status" @change="onStatus">
+        <select
+          :class="[FIELD_CLASS, 'w-full']"
+          :value="patch.status ?? task.status"
+          @change="onStatus"
+        >
           <option value="active">{{ t('执行中') }}</option>
           <option value="draft">{{ t('草稿（待发布）') }}</option>
           <option value="paused">{{ t('已暂停') }}</option>
@@ -304,7 +316,8 @@ const onReminder = (event: Event) =>
       </div>
     </div>
     <p class="text-[11px] text-muted-foreground">
-      {{ t('只做推演，不改任务；确认后才写入处置记录') }}{{ frequencyChanged ? t('（已调整频次）') : '' }}{{ t('。') }}
+      {{ t('只做推演，不改任务；确认后才写入处置记录')
+      }}{{ frequencyChanged ? t('（已调整频次）') : '' }}{{ t('。') }}
     </p>
   </div>
 </template>

@@ -6,9 +6,13 @@
  */
 import { computed, ref } from 'vue'
 import { KIND_LABELS, WEIGHT_LABELS } from '@/beauty/lib/inspectionEngine'
-import type { InspectionActor, InspectionRisk, InspectionState, RiskStatus } from '@/beauty/lib/inspectionTypes'
+import type {
+  InspectionActor,
+  InspectionRisk,
+  InspectionState,
+  RiskStatus
+} from '@/beauty/lib/inspectionTypes'
 import { useBeautyI18n } from '@/beauty/composables'
-import BeautyChip from './BeautyChip.vue'
 import BeautyField from './BeautyField.vue'
 import BeautyKindBadge from './BeautyKindBadge.vue'
 import BeautyLevelBadge from './BeautyLevelBadge.vue'
@@ -54,10 +58,12 @@ const kinds = computed(() => [...new Set(tasks.value.map((task) => task!.kind))]
 
 /** 任务与影响范围摘要（原型把相邻文本节点直接拼在一起，这里先拼好再渲染）。 */
 const summaryLine = computed(() => {
-  const parts = tasks.value.slice(0, 3).map(
-    (task) =>
-      `${task!.title}（${t(KIND_LABELS[task!.kind])}${task!.weight ? `·${t(WEIGHT_LABELS[task!.weight])}` : ''}）`
-  )
+  const parts = tasks.value
+    .slice(0, 3)
+    .map(
+      (task) =>
+        `${task!.title}（${t(KIND_LABELS[task!.kind])}${task!.weight ? `·${t(WEIGHT_LABELS[task!.weight])}` : ''}）`
+    )
   const more = tasks.value.length > 3 ? `等 ${tasks.value.length} 项任务` : ''
   const regionsText = regions.value.join('、') || t('全局')
   return `${parts.join('')}${more} · ${t('影响')} ${props.risk.impact.affectedPeople} ${t('人')} · ${regionsText}`
@@ -65,7 +71,10 @@ const summaryLine = computed(() => {
 </script>
 
 <template>
-  <div class="rounded-xl bg-card ring-1 ring-foreground/10" :class="status === '已解决' ? 'opacity-70' : ''">
+  <div
+    class="rounded-xl bg-card ring-1 ring-foreground/10"
+    :class="status === '已解决' ? 'opacity-70' : ''"
+  >
     <button
       type="button"
       class="flex w-full items-start gap-2.5 px-3.5 py-3 text-left"
@@ -93,7 +102,9 @@ const summaryLine = computed(() => {
           <ul class="grid gap-1">
             <li v-for="item in risk.evidence" :key="item.text" class="grid gap-0.5">
               <span>{{ item.text }}</span>
-              <span class="text-[10.5px] text-muted-foreground">{{ t('来源：') }}{{ item.ref }}</span>
+              <span class="text-[10.5px] text-muted-foreground"
+                >{{ t('来源：') }}{{ item.ref }}</span
+              >
             </li>
           </ul>
         </div>

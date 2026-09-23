@@ -77,7 +77,7 @@ const over = () => props.region.overCapacityCount > 0
       <BeautyMetric
         :label="t('单日峰值')"
         :value="region.peakDayMinutes"
-        unit="分钟"
+        :unit="t('分钟')"
         :hint="region.peakDay ? `${t('出现在')} ${dayLabel(region.peakDay)}` : t('本周没有排期')"
         :tone="region.peakDayMinutes > state.policy.dailyLimitMinutes ? 'text-amber-600' : ''"
       />
@@ -87,7 +87,11 @@ const over = () => props.region.overCapacityCount > 0
       class="mt-3 rounded-lg bg-secondary/60 px-3 py-2 text-[12px] leading-relaxed text-foreground ring-1 ring-primary/15"
     >
       {{ t('占用最多的是') }}
-      {{ region.causes.map((task) => `「${task.title}」（${t('人均')} ${task.minutesPerPerson} ${t('分钟')}）`).join('、') }}
+      {{
+        region.causes
+          .map((task) => `「${task.title}」（${t('人均')} ${task.minutesPerPerson} ${t('分钟')}）`)
+          .join('、')
+      }}
       {{
         region.missingMinutesTaskCount
           ? `；${t('另有')} ${region.missingMinutesTaskCount} ${t('项任务缺预计时长，实际负担可能更高。')}`
@@ -120,11 +124,7 @@ const over = () => props.region.overCapacityCount > 0
           @open-detail="emit('open-detail', $event)"
         />
       </template>
-      <BeautyEmptyState
-        v-else
-        :title="t('本周没有排期任务')"
-        :hint="t('这个区域下周才有任务。')"
-      />
+      <BeautyEmptyState v-else :title="t('本周没有排期任务')" :hint="t('这个区域下周才有任务。')" />
     </div>
   </div>
 
@@ -152,7 +152,9 @@ const over = () => props.region.overCapacityCount > 0
             <span class="text-muted-foreground">↔</span>
             <BeautyKindBadge :kind="pair.b.kind" />
             <span class="text-foreground">{{ pair.b.title }}</span>
-            <BeautyChip tone="bg-amber-50 text-amber-700 ring-amber-200">{{ pair.reason }}</BeautyChip>
+            <BeautyChip tone="bg-amber-50 text-amber-700 ring-amber-200">{{
+              pair.reason
+            }}</BeautyChip>
           </div>
           <div class="text-[11px] text-muted-foreground">
             {{ pair.overlapPeople }} {{ t('人重叠 · 合并后每人可省约') }} {{ pair.savableMinutes }}
@@ -160,7 +162,11 @@ const over = () => props.region.overCapacityCount > 0
           </div>
         </div>
       </template>
-      <BeautyEmptyState v-else :title="t('没有发现重复内容')" :hint="t('本周任务之间没有重复要求。')" />
+      <BeautyEmptyState
+        v-else
+        :title="t('没有发现重复内容')"
+        :hint="t('本周任务之间没有重复要求。')"
+      />
     </div>
   </div>
 

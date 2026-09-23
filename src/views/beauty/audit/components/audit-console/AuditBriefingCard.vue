@@ -2,12 +2,13 @@
 /**
  * 汇报卡（原型 `AuditConsole.tsx` 的 `BriefingCard`）。
  *
- * 结论 → 关键指标 → 两张手写图表 → 问题清单（可跳任务）→ 建议 → 数据 / 技术明细 → 保存动作。
- * 所有「保存 / 定时 / 导出」都通过事件交给页面容器，卡片自己不写状态。
+ * 结论 → 关键指标 → 两张手写图表 → 问题清单（可跳任务）→ 建议 → 数据 / 技术明细 （业务操作统一在左侧）。
+ * 卡片只负责阅读与证据展开，不保存或修改业务状态。
  */
 import { useBeautyI18n } from '@/beauty/composables'
 import { LEVEL_LABELS } from '@/beauty/lib/inspectionEngine'
-import type { AuditReport, AuditToolId } from '@/beauty/lib/auditTools'
+import { computed, ref } from 'vue'
+import type { AuditReport } from '@/beauty/lib/auditTools'
 import AuditChip from './AuditChip.vue'
 import AuditDayChart from './AuditDayChart.vue'
 import AuditRegionChart from './AuditRegionChart.vue'
@@ -18,22 +19,18 @@ defineOptions({ name: 'BeautyAuditBriefingCard' })
 const props = defineProps<{
   report: AuditReport
   steps: TrailStep[]
-  busy: boolean
   /** 任务 id → 标题（由主组件从当前演示数据里取）。 */
   taskTitleOf: (taskId: string) => string
 }>()
 
 const emit = defineEmits<{
   (e: 'focus-task', taskId: string): void
-  (e: 'export', report: AuditReport): void
-  (e: 'run-tool', id: AuditToolId): void
 }>()
 
 const { t } = useBeautyI18n()
 
 /** 展开哪一块明细：数据表 / 技术明细，都收起时为 none。 */
 const open = ref<'none' | 'data' | 'tech'>('none')
-const acked = ref(false)
 
 const tables = computed(() => props.steps.filter((step) => step.output?.table))
 
@@ -188,31 +185,6 @@ const toggle = (next: 'data' | 'tech') => {
           <span>{{ step.output.ms }}ms</span>
         </template>
       </div>
-    </div>
-
-    <div class="audit-actions audit-actions--footer">
-      <button
-        type="button"
-        class="cw-primary"
-        :disabled="props.busy"
-        @click="emit('run-tool', 'save_inspection_record')"
-      >
-        <Icon icon="lucide:shield-check" :size="14" /> {{ t('保存审计记录') }}
-      </button>
-      <button
-        type="button"
-        class="cw-ghost"
-        :disabled="props.busy"
-        @click="emit('run-tool', 'save_schedule')"
-      >
-        <Icon icon="lucide:sparkles" :size="13" /> {{ t('每周一自动审计') }}
-      </button>
-      <button type="button" class="cw-ghost" @click="emit('export', props.report)">
-        <Icon icon="lucide:download" :size="13" /> {{ t('导出报告') }}
-      </button>
-      <button type="button" class="cw-ghost" :disabled="acked" @click="acked = true">
-        <Icon icon="lucide:check" :size="13" /> {{ acked ? t('已确认') : t('标记已确认') }}
-      </button>
     </div>
   </div>
 </template>

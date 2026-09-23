@@ -59,17 +59,16 @@ const busiestText = computed(() =>
       <BeautyChip v-if="task.missingMinutes" tone="bg-violet-50 text-violet-700 ring-violet-200">
         {{ t('缺时长') }}
       </BeautyChip>
-      <BeautyChip
-        v-if="task.duplicateWith.length"
-        tone="bg-amber-50 text-amber-700 ring-amber-200"
-      >
+      <BeautyChip v-if="task.duplicateWith.length" tone="bg-amber-50 text-amber-700 ring-amber-200">
         <Icon icon="lucide:alert-triangle" :size="11" /> {{ t('内容重复') }}
         {{ task.duplicateWith.length }}
       </BeautyChip>
     </div>
     <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
       <span>{{ t('覆盖') }} {{ task.peopleCount }} {{ t('人') }}</span>
-      <span class="text-foreground">{{ t('人均') }} {{ task.minutesPerPerson }} {{ t('分钟') }}</span>
+      <span class="text-foreground"
+        >{{ t('人均') }} {{ task.minutesPerPerson }} {{ t('分钟') }}</span
+      >
       <span>{{ t('本周') }} {{ task.occurrences }} {{ t('次') }}</span>
       <span>{{ busiestText }}</span>
       <span class="flex items-center gap-2">

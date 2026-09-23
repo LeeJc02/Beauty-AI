@@ -1,0 +1,963 @@
+.iv-workspace,
+.iv-materials {
+  /* 与课件工作台共用暖中性与陶土色语义。 */
+  --iv-accent: #b25d49;
+  --iv-accent-hover: #9c4b38;
+  --iv-accent-subtle: #fbf3f0;
+  --iv-accent-border: #f0d8d0;
+  --iv-on-accent: #fff;
+  --iv-ink: #1c1917;
+  --iv-ink-secondary: #44403c;
+  --iv-muted: #78716c;
+  --iv-subtle: #827972;
+  --iv-line: #e7e2df;
+  --iv-line-subtle: #f2ece8;
+  --iv-surface: #fff;
+  --iv-soft: #faf8f6;
+  --iv-bubble: #f4f0ec;
+  --iv-success: #327158;
+  --iv-success-soft: #edf5f1;
+  --iv-warning: #94601a;
+  --iv-warning-soft: #fbf3e6;
+  --iv-warning-border: #d3b78c;
+  --iv-missing: #a8a29e;
+  --iv-focus-ring: rgba(178, 93, 73, 0.12);
+  --iv-shadow-sm: 0 1px 2px rgba(28, 25, 23, 0.04);
+  --iv-shadow-md: 0 4px 16px -2px rgba(28, 25, 23, 0.05), 0 2px 6px -1px rgba(28, 25, 23, 0.03);
+}
+
+/* 此文件为非 scoped 样式，直接匹配应用的 html.dark。 */
+html.dark .iv-workspace,
+html.dark .iv-materials {
+  color-scheme: dark;
+  --iv-accent: #e08b76;
+  --iv-accent-hover: #e89c89;
+  --iv-accent-subtle: rgba(224, 139, 118, 0.12);
+  --iv-accent-border: rgba(224, 139, 118, 0.25);
+  --iv-on-accent: #261512;
+  --iv-ink: #f5f3f0;
+  --iv-ink-secondary: #d6d3d1;
+  --iv-muted: #a8a29e;
+  --iv-subtle: #a8a29e;
+  --iv-line: #383431;
+  --iv-line-subtle: #292624;
+  --iv-surface: #1e1d1b;
+  --iv-soft: #252321;
+  --iv-bubble: #2a2725;
+  --iv-success: #83c9a6;
+  --iv-success-soft: #20352b;
+  --iv-warning: #e1b875;
+  --iv-warning-soft: #352b1f;
+  --iv-warning-border: #725b39;
+  --iv-missing: #78716c;
+  --iv-focus-ring: rgba(224, 139, 118, 0.2);
+  --iv-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.25);
+  --iv-shadow-md: 0 4px 16px -2px rgba(0, 0, 0, 0.4);
+}
+
+.iv-workspace {
+  color: var(--iv-ink);
+  font-family: inherit;
+  height: calc(100dvh - 132px);
+  min-height: 440px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  * {
+    box-sizing: border-box;
+  }
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+  }
+  button {
+    min-height: 42px;
+    cursor: pointer;
+    transition:
+      background 0.18s,
+      border-color 0.18s;
+  }
+  button:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+  }
+  button:focus-visible,
+  input:focus-visible,
+  select:focus-visible {
+    outline: 2px solid var(--iv-accent);
+    outline-offset: 3px;
+  }
+  p,
+  h1,
+  h2,
+  h3 {
+    margin: 0;
+  }
+  button {
+    border: 0;
+  }
+}
+.iv-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 6px 2px 23px;
+  flex: 0 0 auto;
+}
+.iv-brand {
+  display: flex;
+  gap: 11px;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+}
+.iv-brand > div {
+  min-width: 0;
+}
+.iv-brand h1 {
+  overflow-wrap: anywhere;
+}
+.iv-brand-mark {
+  flex-shrink: 0;
+}
+.iv-brand-mark {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  background: var(--iv-accent-subtle);
+  border: 1px solid var(--iv-accent-border);
+  color: var(--iv-accent);
+  border-radius: 14px;
+  font-size: 31px;
+  line-height: 1;
+}
+.iv-brand h1 {
+  font-size: 20px;
+  line-height: 1.4;
+  font-weight: 650;
+  letter-spacing: -0.5px;
+}
+.iv-brand div > span {
+  font-size: 11px;
+  color: var(--iv-muted);
+}
+.iv-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 1;
+  min-width: 0;
+  max-width: 100%;
+  flex-wrap: wrap;
+  font-size: 12px;
+}
+.iv-header-actions .iv-task-action {
+  color: var(--iv-accent);
+}
+.iv-subtle {
+  background: transparent;
+  color: var(--iv-ink-secondary);
+  padding: 5px 2px;
+  font-size: 12px !important;
+  white-space: nowrap;
+}
+.iv-subtle:hover {
+  color: var(--iv-accent);
+}
+.iv-count {
+  font-size: 10px;
+  background: var(--iv-bubble);
+  padding: 1px 5px;
+  border-radius: 5px;
+  margin-left: 4px;
+}
+.iv-new {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--iv-surface);
+  border: 1px solid var(--iv-line) !important;
+  border-radius: 8px;
+  padding: 8px 11px;
+  color: var(--iv-ink-secondary);
+}
+.iv-new:hover {
+  background: var(--iv-soft);
+}
+.iv-panels {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  flex: 1;
+  min-height: 0;
+}
+.iv-conversation {
+  background: var(--iv-surface);
+  border: 1px solid var(--iv-line);
+  border-radius: 24px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  box-shadow: var(--iv-shadow-sm);
+  overflow: hidden;
+}
+.iv-conversation-heading {
+  height: 54px;
+  min-height: 54px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--iv-line-subtle);
+  font-size: 12px;
+}
+.iv-conversation-heading strong {
+  font-weight: 600;
+}
+.iv-conversation-heading > span:last-child {
+  color: var(--iv-muted);
+  font-size: 11px;
+  margin-left: auto;
+}
+.iv-assistant-dot {
+  width: 7px;
+  height: 7px;
+  background: var(--iv-accent);
+  border-radius: 50%;
+  box-shadow: 0 0 0 4px var(--iv-accent-subtle);
+  margin-right: 4px;
+}
+.iv-conversation-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 28px 28px 20px;
+  scrollbar-width: thin;
+  scrollbar-gutter: stable;
+  scrollbar-color: var(--iv-line) transparent;
+  scroll-behavior: smooth;
+}
+.iv-welcome {
+  padding: 14px 0 25px;
+}
+.iv-eyebrow {
+  color: var(--iv-accent);
+  font-size: 11px;
+  letter-spacing: 0.7px;
+  font-weight: 500;
+}
+.iv-welcome h2 {
+  font-size: clamp(26px, 2.6vw, 38px);
+  line-height: 1.45;
+  letter-spacing: -1px;
+  font-weight: 550;
+  margin: 12px 0 14px;
+}
+.iv-welcome p {
+  font-size: 13px;
+  line-height: 1.9;
+  color: var(--iv-muted);
+}
+.iv-examples {
+  display: grid;
+  gap: 9px;
+}
+.iv-examples button {
+  display: flex;
+  align-items: center;
+  text-align: left;
+  gap: 12px;
+  padding: 12px 13px;
+  border: 1px solid var(--iv-line);
+  background: var(--iv-soft);
+  border-radius: 9px;
+  color: var(--iv-ink);
+}
+.iv-examples button:hover {
+  background: var(--iv-accent-subtle);
+  border-color: var(--iv-accent-border);
+}
+.iv-example-icon {
+  height: 33px;
+  width: 33px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--iv-accent-subtle);
+  color: var(--iv-accent);
+  font-size: 23px;
+}
+.iv-examples strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 550;
+  margin-bottom: 4px;
+}
+.iv-examples small {
+  color: var(--iv-muted);
+  font-size: 11px;
+}
+.iv-example-arrow {
+  margin-left: auto;
+  color: var(--iv-subtle);
+}
+.iv-entry-note {
+  font-size: 11px;
+  color: var(--iv-subtle);
+  margin-top: 18px !important;
+}
+.iv-composer {
+  margin: 0 20px;
+  border: 1px solid var(--iv-line);
+  border-radius: 12px;
+  padding: 12px 13px 10px;
+  background: var(--iv-surface);
+  box-shadow: var(--iv-shadow-sm);
+  flex: 0 0 auto;
+}
+.iv-composer:focus-within {
+  border-color: var(--iv-accent);
+  box-shadow: 0 0 0 3px var(--iv-focus-ring);
+}
+.iv-composer textarea {
+  width: 100%;
+  resize: none;
+  outline: none;
+  border: 0;
+  background: transparent;
+  color: var(--iv-ink);
+  font-size: 13px;
+  line-height: 1.8;
+  min-height: 50px;
+}
+.iv-composer textarea::placeholder {
+  color: var(--iv-subtle);
+}
+.iv-composer-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 6px;
+}
+.iv-composer-bottom > span {
+  color: var(--iv-subtle);
+  font-size: 10px;
+}
+.iv-composer-bottom button {
+  background: var(--iv-accent);
+  color: var(--iv-on-accent);
+  border-radius: 7px;
+  padding: 7px 12px;
+  font-size: 12px;
+}
+.iv-composer-bottom button > span {
+  margin-left: 7px;
+  font-size: 17px;
+}
+.iv-composer-bottom button:hover:not(:disabled),
+.iv-primary:hover:not(:disabled) {
+  background: var(--iv-accent-hover);
+}
+.iv-boundary {
+  flex-shrink: 0;
+  font-size: 10px;
+  color: var(--iv-subtle);
+  text-align: center;
+  padding: 10px 5px 13px;
+}
+.iv-task-label {
+  padding-bottom: 17px;
+  margin-bottom: 21px;
+  border-bottom: 1px solid var(--iv-line-subtle);
+}
+.iv-task-label > span {
+  display: block;
+  font-size: 10px;
+  color: var(--iv-muted);
+  margin-bottom: 5px;
+}
+.iv-task-label strong {
+  display: block;
+  font-size: 17px;
+  font-weight: 550;
+  line-height: 1.6;
+}
+.iv-task-label small {
+  color: var(--iv-muted);
+  font-size: 11px;
+}
+.iv-message {
+  margin-bottom: 20px;
+}
+.iv-message-author {
+  color: var(--iv-muted);
+  font-size: 10px;
+  display: block;
+  margin-bottom: 7px;
+}
+.iv-message p {
+  white-space: pre-line;
+  font-size: 13px;
+  line-height: 1.95;
+  overflow-wrap: anywhere;
+}
+.iv-message--user {
+  margin-left: 30px;
+  padding: 11px 15px;
+  border-radius: 12px 12px 3px 12px;
+  background: var(--iv-bubble);
+}
+.iv-message--user .iv-message-author {
+  display: none;
+}
+.iv-working {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 12px;
+  border-radius: 10px;
+  background: var(--iv-soft);
+  margin-bottom: 16px;
+}
+.iv-working strong {
+  display: block;
+  font-size: 12px;
+  font-weight: 550;
+}
+.iv-working small {
+  display: block;
+  color: var(--iv-muted);
+  font-size: 10px;
+  margin-top: 5px;
+}
+.iv-working button {
+  margin-left: auto;
+}
+.iv-pulse {
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--iv-accent-border);
+  border-top-color: var(--iv-accent);
+  border-radius: 50%;
+  animation: iv-spin 0.8s linear infinite;
+}
+@keyframes iv-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.iv-evidence-links {
+  display: flex;
+  gap: 17px;
+  margin: -2px 0 22px;
+}
+.iv-evidence-links button {
+  background: none;
+  color: var(--iv-accent);
+  font-size: 11px;
+  padding: 3px 0;
+  border-bottom: 1px solid var(--iv-accent-border);
+}
+.iv-evidence-links button:last-child {
+  color: var(--iv-muted);
+  border-bottom-color: var(--iv-line);
+}
+.iv-action-card {
+  background: var(--iv-soft);
+  padding: 19px;
+  border-radius: 12px;
+  border: 1px solid var(--iv-line);
+}
+.iv-action-card h3 {
+  font-size: 17px;
+  font-weight: 550;
+  margin: 8px 0;
+  line-height: 1.6;
+}
+.iv-action-card p {
+  color: var(--iv-muted);
+  font-size: 12px;
+  line-height: 1.9;
+  margin: 6px 0 16px;
+}
+.iv-primary {
+  background: var(--iv-accent);
+  color: var(--iv-on-accent);
+  border-radius: 8px;
+  padding: 10px 15px;
+  font-size: 12px !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: center;
+}
+.iv-secondary-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 13px;
+  margin-top: 15px;
+  font-size: 10px;
+}
+.iv-secondary-actions > span {
+  color: var(--iv-muted);
+  margin-right: auto;
+}
+.iv-secondary-actions button {
+  font-size: 11px !important;
+}
+.iv-plan {
+  border: 1px solid var(--iv-accent-border);
+  border-radius: 12px;
+  padding: 19px;
+  background: var(--iv-soft);
+}
+.iv-plan-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 17px;
+}
+.iv-plan-heading strong {
+  font-size: 16px;
+  font-weight: 550;
+}
+.iv-plan-heading small {
+  display: block;
+  color: var(--iv-muted);
+  font-size: 11px;
+  margin-top: 4px;
+}
+.iv-plan-icon {
+  width: 35px;
+  height: 35px;
+  display: grid;
+  place-items: center;
+  color: var(--iv-accent);
+  font-size: 26px;
+  background: var(--iv-accent-subtle);
+  border-radius: 10px;
+}
+.iv-plan > p {
+  font-size: 12px;
+  line-height: 1.9;
+  color: var(--iv-ink-secondary);
+}
+.iv-plan-fields {
+  display: grid;
+  gap: 12px;
+  margin: 15px 0;
+}
+.iv-plan-fields label {
+  color: var(--iv-muted);
+  font-size: 11px;
+  display: grid;
+  gap: 6px;
+}
+.iv-plan-fields select,
+.iv-plan-fields input:not([type='checkbox']) {
+  width: 100%;
+  min-height: 42px;
+  background: var(--iv-surface);
+  color: var(--iv-ink-secondary);
+  border: 1px solid var(--iv-line);
+  padding: 9px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+.iv-plan-rule {
+  padding: 12px 0;
+  border-top: 1px solid var(--iv-line);
+}
+.iv-plan-rule strong {
+  font-size: 12px;
+  font-weight: 550;
+}
+.iv-plan-rule ul {
+  margin: 8px 0 0;
+  padding-left: 16px;
+  font-size: 11px;
+  color: var(--iv-muted);
+  line-height: 1.9;
+}
+.iv-plan .iv-plan-disclaimer {
+  font-size: 10px;
+  color: var(--iv-warning);
+  margin-bottom: 15px;
+}
+.iv-inline-actions {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.iv-watch-card {
+  border: 1px solid var(--iv-line);
+  border-radius: 12px;
+  padding: 18px;
+}
+.iv-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.iv-section-heading strong {
+  font-size: 13px;
+  font-weight: 550;
+}
+.iv-section-heading i {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  background: var(--iv-success);
+  border-radius: 50%;
+  margin-right: 6px;
+}
+.iv-section-heading i.paused {
+  background: var(--iv-warning);
+}
+.iv-watch-card > p {
+  font-size: 11px;
+  color: var(--iv-muted);
+  line-height: 1.9;
+  margin: 8px 0 15px;
+}
+.iv-demo-control {
+  border-top: 1px dashed var(--iv-line);
+  padding-top: 14px;
+}
+.iv-demo-control > span {
+  color: var(--iv-muted);
+  font-size: 10px;
+}
+.iv-demo-control p {
+  font-size: 12px;
+  color: var(--iv-ink-secondary);
+  margin: 6px 0 13px;
+}
+.iv-demo-control small {
+  display: block;
+  font-size: 10px;
+  line-height: 1.8;
+  color: var(--iv-subtle);
+  margin-top: 10px;
+}
+.iv-finished {
+  background: var(--iv-success-soft);
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 22px 16px;
+  border-radius: 10px;
+}
+.iv-finished > span {
+  width: 33px;
+  height: 33px;
+  display: grid;
+  place-items: center;
+  color: var(--iv-surface);
+  background: var(--iv-success);
+  border-radius: 50%;
+}
+.iv-finished strong {
+  font-size: 17px;
+  font-weight: 550;
+}
+.iv-finished p {
+  color: var(--iv-success);
+  font-size: 11px;
+  margin-top: 6px;
+}
+.iv-history {
+  position: absolute;
+  right: 0;
+  top: 65px;
+  z-index: 15;
+  width: min(430px, 100%);
+  padding: 18px;
+  background: var(--iv-surface);
+  box-shadow: var(--iv-shadow-md);
+  border: 1px solid var(--iv-line);
+  border-radius: 13px;
+  max-height: 70%;
+  overflow: auto;
+}
+.iv-history > p {
+  font-size: 12px;
+  color: var(--iv-muted);
+  margin: 20px 0;
+}
+.iv-history > small {
+  font-size: 10px;
+  color: var(--iv-subtle);
+  display: block;
+  margin-top: 12px;
+}
+.iv-history-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  padding: 15px 7px;
+  border-bottom: 1px solid var(--iv-line-subtle) !important;
+  color: var(--iv-ink-secondary);
+}
+.iv-history-row:hover,
+.iv-history-row.selected {
+  background: var(--iv-soft);
+}
+.iv-history-row strong {
+  font-size: 12px;
+  font-weight: 550;
+  display: block;
+}
+.iv-history-row small {
+  display: block;
+  font-size: 10px;
+  color: var(--iv-muted);
+  margin-top: 4px;
+}
+.iv-status {
+  font-size: 10px;
+  color: var(--iv-success);
+  white-space: nowrap;
+}
+.iv-storage-warning {
+  background: var(--iv-warning-soft);
+  padding: 10px 14px;
+  font-size: 12px;
+  color: var(--iv-warning);
+  margin-bottom: 10px;
+  border-radius: 8px;
+}
+.iv-feedback {
+  position: absolute;
+  top: 65px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  background: var(--iv-ink);
+  color: var(--iv-surface);
+  padding: 11px 20px;
+  border-radius: 10px;
+  font-size: 12px;
+  box-shadow: var(--iv-shadow-md);
+}
+.iv-clarification {
+  background: var(--iv-accent-subtle);
+  border-radius: 10px;
+  padding: 15px;
+  margin-bottom: 16px;
+}
+.iv-clarification p {
+  font-size: 12px;
+  margin-bottom: 8px;
+  color: var(--iv-muted);
+}
+.iv-clarification strong {
+  font-size: 13px;
+  font-weight: 550;
+}
+.iv-clarification span {
+  display: block;
+  font-size: 11px;
+  margin-top: 7px;
+  color: var(--iv-muted);
+}
+.iv-mobile-nav {
+  display: none;
+}
+.iv-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+@media (min-width: 1500px) {
+  .iv-conversation-body {
+    padding: 35px 36px 24px;
+  }
+  .iv-welcome {
+    padding-top: 22px;
+    padding-bottom: 32px;
+  }
+  .iv-examples button {
+    padding: 16px;
+  }
+}
+@media (max-width: 1100px) {
+  .iv-conversation-body {
+    padding: 22px 18px 16px;
+  }
+  .iv-composer {
+    margin: 0 14px;
+  }
+  .iv-header-actions {
+    gap: 10px;
+  }
+}
+@media (max-width: 760px) {
+  .iv-workspace {
+    min-height: 460px;
+    height: calc(100dvh - 116px);
+  }
+  .iv-header {
+    padding-bottom: 13px;
+    gap: 8px;
+  }
+  .iv-brand h1 {
+    font-size: 17px;
+  }
+  .iv-brand-mark {
+    width: 34px;
+    height: 34px;
+    font-size: 26px;
+  }
+  .iv-brand div > span {
+    display: none;
+  }
+  .iv-header-actions {
+    gap: 8px;
+  }
+  .iv-new {
+    padding: 7px;
+    font-size: 11px;
+  }
+  .iv-header-actions > .iv-subtle {
+    font-size: 10px !important;
+  }
+  .iv-mobile-nav {
+    display: flex;
+    gap: 5px;
+    border-radius: 9px;
+    background: var(--iv-bubble);
+    padding: 4px;
+    margin-bottom: 12px;
+  }
+  .iv-mobile-nav button {
+    flex: 1;
+    font-size: 12px;
+    padding: 8px;
+    color: var(--iv-muted);
+    background: transparent;
+    border-radius: 6px;
+  }
+  .iv-mobile-nav button.active {
+    background: var(--iv-surface);
+    color: var(--iv-accent);
+    box-shadow: var(--iv-shadow-sm);
+  }
+  .iv-panels {
+    display: flex;
+  }
+  .iv-panels > * {
+    width: 100%;
+  }
+  .iv-mobile-hidden {
+    display: none !important;
+  }
+  .iv-welcome {
+    padding-top: 0;
+  }
+  .iv-welcome h2 {
+    font-size: 28px;
+  }
+  .iv-conversation-heading {
+    padding: 0 18px;
+  }
+  .iv-boundary {
+    font-size: 9px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .iv-workspace *,
+  .iv-workspace *::before,
+  .iv-workspace *::after,
+  .iv-materials *,
+  .iv-materials *::before,
+  .iv-materials *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+.iv-plan-region-field {
+  display: grid;
+  gap: 7px;
+  color: var(--iv-muted);
+  font-size: 12px;
+}
+.iv-plan-region-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.iv-plan-region-options label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 8px;
+  min-height: 42px;
+  color: var(--iv-ink-secondary);
+  background: var(--iv-surface);
+  border: 1px solid var(--iv-line);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.iv-plan-region-options input {
+  accent-color: var(--iv-accent);
+}
+
+/* 同一工作台中的三个页面：保持滚动职责，切换只动画位移与透明度。 */
+.iv-editor-page {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+.iv-back {
+  font-weight: 500;
+}
+.iv-page-enter-active {
+  transition:
+    opacity 240ms ease,
+    transform 240ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.iv-page-leave-active {
+  transition:
+    opacity 140ms ease,
+    transform 140ms ease;
+}
+.iv-page-enter-from {
+  opacity: 0;
+  transform: translateY(10px);
+}
+.iv-page-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .iv-page-enter-active,
+  .iv-page-leave-active {
+    transition: none !important;
+  }
+  .iv-page-enter-from,
+  .iv-page-leave-to {
+    transform: none;
+  }
+}

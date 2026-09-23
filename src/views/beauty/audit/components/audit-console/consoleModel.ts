@@ -55,10 +55,68 @@ export type ConsoleItem =
   | { kind: 'agent'; id: string; text: string; event?: string; tone?: 'note' | 'confirm' | 'error' }
   | ClarifyItem
   | TrailItem
-  | { kind: 'report'; id: string; report: AuditReport; ctx: AuditContext; question: string }
+  | {
+      kind: 'report'
+      id: string
+      report: AuditReport
+      ctx: AuditContext
+      question: string
+      trailId: string
+    }
 
 /** 报告项（工作台右栏与汇报卡共用）。 */
 export type ReportItem = Extract<ConsoleItem, { kind: 'report' }>
+
+/** 找当前批次报告；新一轮查询会显式清空 activeReportId，避免沿用旧结论。 */
+export const reportFor = (items: ConsoleItem[], activeReportId: string | null) => {
+  if (!activeReportId) return null
+  return (
+    items.find(
+      (item): item is ReportItem => item.kind === 'report' && item.id === activeReportId
+    ) ?? null
+  )
+}
+
+/** 口径优先级：补问中的临时口径 > 当前批次 > 当前报告 > 页面基础口径。 */
+export const auditContextFor = (
+  base: AuditContext,
+  pending: AuditContext | null,
+  run: AuditContext | null,
+  report: AuditContext | null
+) => pending ?? run ?? report ?? base
+
+/**
+ * 右栏（产物区）的阶段。
+ *
+ * 口径没确认完之前，右栏不能出现「这次查了什么」——那些只是页面默认值，
+ * 不等于用户选过的条件；所以「确认口径」期间右栏只给空态提示。
+ */
+export type ArtifactStage = 'idle' | 'clarifying' | 'collecting' | 'reporting'
+
+export const artifactStageOf = (input: {
+  entered: boolean
+  pending: boolean
+  hasTrail: boolean
+  hasReport: boolean
+}): ArtifactStage => {
+  if (!input.entered) return 'idle'
+  if (input.hasReport) return 'reporting'
+  if (input.hasTrail) return 'collecting'
+  if (input.pending) return 'clarifying'
+  return 'idle'
+}
+
+/** 已确认的口径只在取数开始后展示；补问期间一律不显示默认值。 */
+export const stageShowsScope = (stage: ArtifactStage) =>
+  stage === 'collecting' || stage === 'reporting'
+
+/** 只在用户已经贴近底部时自动跟随，避免阅读历史消息被新步骤打断。 */
+export const isNearBottom = (
+  scrollHeight: number,
+  scrollTop: number,
+  clientHeight: number,
+  threshold = 48
+) => scrollHeight - scrollTop - clientHeight <= threshold
 
 /* ------------------------------------------------------------------ 常量 */
 

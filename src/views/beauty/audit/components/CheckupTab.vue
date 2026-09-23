@@ -62,7 +62,13 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'select-task', taskId: string): void
-  (e: 'dispose', taskId: string, riskKey?: string, patch?: TaskPatch, action?: DispositionAction): void
+  (
+    e: 'dispose',
+    taskId: string,
+    riskKey?: string,
+    patch?: TaskPatch,
+    action?: DispositionAction
+  ): void
   (e: 'open-task', taskId: string): void
 }>()
 
@@ -108,7 +114,9 @@ const sortedTasks = computed(() =>
 
 const selected = computed(
   () =>
-    sortedTasks.value.find((task) => task.id === props.selectedTaskId) ?? sortedTasks.value[0] ?? null
+    sortedTasks.value.find((task) => task.id === props.selectedTaskId) ??
+    sortedTasks.value[0] ??
+    null
 )
 
 watch(
@@ -132,7 +140,9 @@ const audienceIds = computed(() =>
 const regionIds = computed(() => {
   const item = selected.value
   if (!item) return []
-  return item.audience.regionIds.length ? item.audience.regionIds : props.state.regions.map((r) => r.id)
+  return item.audience.regionIds.length
+    ? item.audience.regionIds
+    : props.state.regions.map((r) => r.id)
 })
 
 const aggregates = computed(() =>
@@ -142,12 +152,12 @@ const aggregates = computed(() =>
 const people = computed(() => aggregates.value.flatMap((region) => region.people))
 
 const assigned = computed(() =>
-  audienceIds.value ? people.value.filter((person) => audienceIds.value!.includes(person.personId)) : people.value
+  audienceIds.value
+    ? people.value.filter((person) => audienceIds.value!.includes(person.personId))
+    : people.value
 )
 
-const peakPerson = computed(() =>
-  [...assigned.value].sort((a, b) => b.dailyPeak - a.dailyPeak)[0]
-)
+const peakPerson = computed(() => [...assigned.value].sort((a, b) => b.dailyPeak - a.dailyPeak)[0])
 
 const weekDays = computed(() => Array.from({ length: 7 }, (_, index) => addDays(props.week, index)))
 
@@ -155,7 +165,10 @@ const dayTotals = computed(() =>
   weekDays.value.map((day) =>
     assigned.value.reduce(
       (sum, person) =>
-        sum + person.items.filter((item) => item.day === day).reduce((total, item) => total + item.minutes, 0),
+        sum +
+        person.items
+          .filter((item) => item.day === day)
+          .reduce((total, item) => total + item.minutes, 0),
       0
     )
   )
@@ -236,11 +249,12 @@ const occurrenceText = computed(() => {
     : `${minutes} ${t('分钟')}（${t('含附加题')} ${item.additionalMinutes} ${t('分钟')}）`
 })
 
-const frequencyText = computed(() => {
-  const frequency = selected.value?.frequency
-  if (!frequency) return ''
-  const unit = frequency.unit === 'once' ? t('一次性') : frequency.unit === 'daily' ? t('每日') : t('每周')
-  return `${t(KIND_LABELS[selected.value!.kind])} · ${unit} ${frequency.count} ${t('次')}`
+const timeRuleText = computed(() => {
+  const item = selected.value
+  if (!item) return ''
+  return item.frequency
+    ? `${t(KIND_LABELS[item.kind])} · ${item.frequency.unit === 'once' ? t('一次性') : item.frequency.unit === 'daily' ? t('每日') : t('每周')} ${item.frequency.count} ${t('次')}`
+    : t('缺少结构化频次')
 })
 
 const statusText = (status: string) =>
@@ -249,7 +263,8 @@ const statusText = (status: string) =>
 const meanMinutes = computed(() =>
   Math.round(
     assigned.value.length
-      ? assigned.value.reduce((sum, person) => sum + person.plannedMinutes, 0) / assigned.value.length
+      ? assigned.value.reduce((sum, person) => sum + person.plannedMinutes, 0) /
+          assigned.value.length
       : 0
   )
 )
@@ -265,22 +280,6 @@ const peakDayItems = computed(() =>
     .filter((item) => item.day === peakPerson.value?.peakDay)
     .map((item) => `${item.taskTitle} ${Math.round(item.minutes)} ${t('分钟')}`)
     .join('、')
-)
-
-const timeRuleText = computed(() => {
-  const item = selected.value
-  if (!item) return ''
-  return item.frequency
-    ? `${t(KIND_LABELS[item.kind])} · ${item.frequency.unit === 'once' ? t('一次性') : item.frequency.unit === 'daily' ? t('每日') : t('每周')} ${item.frequency.count} ${t('次')}`
-    : t('缺少结构化频次')
-})
-
-const weekDayItems = computed(() =>
-  (peakPerson.value?.items ?? []).map((item) => ({
-    day: item.day,
-    taskTitle: item.taskTitle,
-    minutes: Math.round(item.minutes)
-  }))
 )
 
 const onDispose = (
@@ -314,8 +313,16 @@ const submitDisposal = () => {
       />
       <div class="mt-2.5 grid gap-2">
         <div class="relative">
-          <Icon icon="lucide:search" :size="13" class="absolute top-2.5 left-2 text-muted-foreground" />
-          <input v-model="search" :class="[FIELD_CLASS, 'w-full pl-6']" :placeholder="t('搜索任务')" />
+          <Icon
+            icon="lucide:search"
+            :size="13"
+            class="absolute top-2.5 left-2 text-muted-foreground"
+          />
+          <input
+            v-model="search"
+            :class="[FIELD_CLASS, 'w-full pl-6']"
+            :placeholder="t('搜索任务')"
+          />
         </div>
         <div class="flex flex-wrap gap-1">
           <button
@@ -376,8 +383,8 @@ const submitDisposal = () => {
           </span>
           <span class="text-[12px] font-medium text-foreground">{{ task.title }}</span>
           <span class="text-[10.5px] text-muted-foreground">
-            {{ statusText(task.status) }} · v{{ task.version }} ·
-            {{ t('命中') }} {{ task.audience.resolvedPersonIds?.length ?? 0 }} {{ t('人') }}
+            {{ statusText(task.status) }} · v{{ task.version }} · {{ t('命中') }}
+            {{ task.audience.resolvedPersonIds?.length ?? 0 }} {{ t('人') }}
             {{
               risks.filter((risk) => risk.taskIds.includes(task.id)).length
                 ? ` · ${risks.filter((risk) => risk.taskIds.includes(task.id)).length} ${t('项风险')}`
@@ -402,10 +409,7 @@ const submitDisposal = () => {
             <BeautyChip tone="bg-muted text-muted-foreground ring-border">
               v{{ selected.version }}
             </BeautyChip>
-            <BeautyChip
-              v-if="gaps.length"
-              tone="bg-violet-50 text-violet-700 ring-violet-200"
-            >
+            <BeautyChip v-if="gaps.length" tone="bg-violet-50 text-violet-700 ring-violet-200">
               {{ t('缺') }} {{ gaps.length }} {{ t('项字段') }}
             </BeautyChip>
             <BeautyChip v-else tone="bg-emerald-50 text-emerald-700 ring-emerald-200">
@@ -491,7 +495,9 @@ const submitDisposal = () => {
             <div v-for="row in distribution" :key="row.regionId" class="grid gap-1">
               <div class="flex items-center justify-between text-[11px]">
                 <span>{{ row.name }}</span>
-                <span class="text-muted-foreground">{{ row.count }} / {{ row.eligible }} {{ t('人') }}</span>
+                <span class="text-muted-foreground"
+                  >{{ row.count }} / {{ row.eligible }} {{ t('人') }}</span
+                >
               </div>
               <BeautyBar :value="row.count" :max="Math.max(1, row.eligible)" />
             </div>
@@ -508,8 +514,8 @@ const submitDisposal = () => {
               v-if="selected.audience.snapshotVersion < selected.version"
               class="text-[11px] text-amber-700"
             >
-              {{ t('员工名单由') }} v{{ selected.audience.snapshotVersion }} {{ t('生成，任务已更新到') }} v{{
-                selected.version
+              {{ t('员工名单由') }} v{{ selected.audience.snapshotVersion }}
+              {{ t('生成，任务已更新到') }} v{{ selected.version
               }}{{ t('，需要按最新人群策略重新生成名单。') }}
             </p>
           </div>
@@ -543,7 +549,9 @@ const submitDisposal = () => {
               </div>
             </div>
             <div class="grid gap-2 sm:grid-cols-3">
-              <BeautyField :label="t('区域人均预计分钟')">{{ meanMinutes }} {{ t('分钟') }}</BeautyField>
+              <BeautyField :label="t('区域人均预计分钟')"
+                >{{ meanMinutes }} {{ t('分钟') }}</BeautyField
+              >
               <BeautyField :label="t('最高单人峰值')">{{ peakPersonText }}</BeautyField>
               <BeautyField :label="t('本周命中人数')">
                 {{ assigned.length }} {{ t('人 · 名单') }}

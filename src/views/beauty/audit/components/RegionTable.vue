@@ -87,12 +87,15 @@ const kindKeys = Object.keys(KIND_LABELS) as (keyof typeof KIND_LABELS)[]
                   :tone="region.overCapacityCount > 0 ? 'bg-rose-400' : 'bg-emerald-400'"
                 />
                 <span class="text-[10px] text-muted-foreground">
-                  {{ t('容量') }} {{ region.capacityMinutes }}{{ region.capacityConfirmed ? '' : t('（默认）') }}
+                  {{ t('容量') }} {{ region.capacityMinutes
+                  }}{{ region.capacityConfirmed ? '' : t('（默认）') }}
                 </span>
               </template>
               <template v-else>
                 <span class="text-[12px] font-semibold text-muted-foreground">—</span>
-                <span class="text-[10px] text-muted-foreground">{{ t('全员缺预计时长，无法判定') }}</span>
+                <span class="text-[10px] text-muted-foreground">{{
+                  t('全员缺预计时长，无法判定')
+                }}</span>
               </template>
             </span>
             <span class="col-span-2 grid gap-0.5">
@@ -141,7 +144,12 @@ const kindKeys = Object.keys(KIND_LABELS) as (keyof typeof KIND_LABELS)[]
               </BeautyChip>
             </span>
             <span class="col-span-1 flex justify-end">
-              <el-button size="small" plain class="!h-7 !px-2 !text-[11px]" @click.stop="emit('open', region.regionId)">
+              <el-button
+                size="small"
+                plain
+                class="!h-7 !px-2 !text-[11px]"
+                @click.stop="emit('open', region.regionId)"
+              >
                 {{ t('点击查看') }}
               </el-button>
             </span>

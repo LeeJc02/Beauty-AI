@@ -17,7 +17,10 @@ import {
   taskOccurrenceMinutes,
   taskPeriods
 } from '@/beauty/lib/inspectionEngine'
-import { buildAdjustmentSuggestion, type AdjustmentSuggestion } from '@/beauty/lib/adjustmentSuggestion'
+import {
+  buildAdjustmentSuggestion,
+  type AdjustmentSuggestion
+} from '@/beauty/lib/adjustmentSuggestion'
 import type { InspectionState, InspectionTask } from '@/beauty/lib/inspectionTypes'
 import { useBeautyI18n } from '@/beauty/composables'
 import BeautyChip from './BeautyChip.vue'
@@ -76,10 +79,10 @@ const generateSuggestion = () => {
 }
 
 const periods = computed(() => (props.task ? taskPeriods(props.task, props.week) : []))
-const audience = computed(() => (props.task ? (taskAudienceIds(props.state, props.task) ?? []) : []))
-const occurrenceMinutes = computed(() =>
-  props.task ? taskOccurrenceMinutes(props.task) : null
+const audience = computed(() =>
+  props.task ? (taskAudienceIds(props.state, props.task) ?? []) : []
 )
+const occurrenceMinutes = computed(() => (props.task ? taskOccurrenceMinutes(props.task) : null))
 const gaps = computed(() => (props.task ? missingFields(props.task) : []))
 
 const relationRows = computed(() => {
@@ -93,8 +96,8 @@ const relationRows = computed(() => {
   ].filter((row) => row.ids.length)
 })
 
-const required = computed(() =>
-  periods.value.reduce((sum, period) => sum + period.count, 0) * audience.value.length
+const required = computed(
+  () => periods.value.reduce((sum, period) => sum + period.count, 0) * audience.value.length
 )
 
 const done = computed(() => {
@@ -166,8 +169,13 @@ const onDiscard = () => {
       <div class="flex flex-wrap items-center gap-2 text-[15px] font-semibold text-foreground">
         <BeautyKindBadge :kind="task.kind" />
         <span>{{ task.title }}</span>
-        <BeautyChip tone="bg-muted text-muted-foreground ring-border">v{{ task.version }}</BeautyChip>
-        <BeautyChip v-if="task.weight" tone="bg-secondary text-secondary-foreground ring-primary/20">
+        <BeautyChip tone="bg-muted text-muted-foreground ring-border"
+          >v{{ task.version }}</BeautyChip
+        >
+        <BeautyChip
+          v-if="task.weight"
+          tone="bg-secondary text-secondary-foreground ring-primary/20"
+        >
           {{ t(WEIGHT_LABELS[task.weight]) }}
         </BeautyChip>
         <BeautyChip tone="bg-muted text-muted-foreground ring-border">{{ statusText }}</BeautyChip>
@@ -211,7 +219,11 @@ const onDiscard = () => {
           {{ task.startsOn || t('未设置') }} → {{ task.endsOn || t('未设置') }}
         </BeautyField>
         <BeautyField :label="t('频次')">
-          {{ task.frequency ? `${t(FREQUENCY_LABELS[task.frequency.unit])} ${task.frequency.count} ${t('次')}` : t('未配置') }}
+          {{
+            task.frequency
+              ? `${t(FREQUENCY_LABELS[task.frequency.unit])} ${task.frequency.count} ${t('次')}`
+              : t('未配置')
+          }}
         </BeautyField>
         <BeautyField :label="t('单次时长')">
           {{
@@ -228,7 +240,12 @@ const onDiscard = () => {
           {{ t(SCOPE_LABELS[task.audience.scope]) }} · {{ task.audience.label }}
         </BeautyField>
         <BeautyField :label="t('命中人数')">
-          {{ audience.length }} {{ t('人') }}{{ task.audience.expectedCount !== null ? `（${t('预期')} ${task.audience.expectedCount} ${t('人')}）` : '' }}
+          {{ audience.length }} {{ t('人')
+          }}{{
+            task.audience.expectedCount !== null
+              ? `（${t('预期')} ${task.audience.expectedCount} ${t('人')}）`
+              : ''
+          }}
         </BeautyField>
       </div>
 
@@ -274,8 +291,14 @@ const onDiscard = () => {
       <section class="grid gap-1.5">
         <div class="text-[11.5px] font-semibold text-foreground">{{ t('关联任务') }}</div>
         <div v-if="relationRows.length" class="grid gap-1">
-          <div v-for="row in relationRows" :key="row.label" class="flex flex-wrap items-center gap-1.5">
-            <BeautyChip tone="bg-muted text-muted-foreground ring-border">{{ row.label }}</BeautyChip>
+          <div
+            v-for="row in relationRows"
+            :key="row.label"
+            class="flex flex-wrap items-center gap-1.5"
+          >
+            <BeautyChip tone="bg-muted text-muted-foreground ring-border">{{
+              row.label
+            }}</BeautyChip>
             <span>{{ related(row.ids) }}</span>
           </div>
           <span v-if="!task.relations.sequenceDefined" class="text-muted-foreground">
@@ -294,13 +317,20 @@ const onDiscard = () => {
             {{ t('次') }}{{ completion !== null ? `（${completion}%）` : '' }}
           </span>
           <span>
-            {{ t('完成回传：') }}{{ task.results.returnedAt ? jakartaStamp(task.results.returnedAt) : t('没有回传') }}
+            {{ t('完成回传：')
+            }}{{ task.results.returnedAt ? jakartaStamp(task.results.returnedAt) : t('没有回传') }}
           </span>
           <span>
-            {{ t('推送记录：') }}{{ task.results.pushedAt ? jakartaStamp(task.results.pushedAt) : t('没有推送') }}
+            {{ t('推送记录：')
+            }}{{ task.results.pushedAt ? jakartaStamp(task.results.pushedAt) : t('没有推送') }}
           </span>
           <span v-if="task.kind === 'exam'">
-            {{ t('成绩：') }}{{ Object.keys(task.results.scores).length ? `${Object.keys(task.results.scores).length} ${t('人有成绩')}` : t('暂无成绩') }}
+            {{ t('成绩：')
+            }}{{
+              Object.keys(task.results.scores).length
+                ? `${Object.keys(task.results.scores).length} ${t('人有成绩')}`
+                : t('暂无成绩')
+            }}
           </span>
         </div>
       </section>
@@ -308,7 +338,12 @@ const onDiscard = () => {
       <section class="grid gap-1.5">
         <div class="text-[11.5px] font-semibold text-foreground">{{ t('人员名单') }}</div>
         <span v-if="audience.length" class="text-muted-foreground">
-          {{ audience.slice(0, 8).map((id) => personNameOf(id)).join('、') }}
+          {{
+            audience
+              .slice(0, 8)
+              .map((id) => personNameOf(id))
+              .join('、')
+          }}
           {{ audience.length > 8 ? `${t('等')} ${audience.length} ${t('人')}` : '' }}
           {{
             snapshotStale
@@ -316,7 +351,9 @@ const onDiscard = () => {
               : ''
           }}
         </span>
-        <span v-else class="text-muted-foreground">{{ t('没有逐人分配，只按人群策略下发。') }}</span>
+        <span v-else class="text-muted-foreground">{{
+          t('没有逐人分配，只按人群策略下发。')
+        }}</span>
       </section>
 
       <section
@@ -342,7 +379,9 @@ const onDiscard = () => {
             {{ t('站内信草稿（点发送后走「消息中心 › 我的消息」）') }}
           </span>
           <BeautyChip tone="bg-white text-secondary-foreground ring-primary/20">
-            {{ t('收件人') }} {{ suggestion.recipient.name }}（{{ suggestion.recipient.roleLabel }}）
+            {{ t('收件人') }} {{ suggestion.recipient.name }}（{{
+              suggestion.recipient.roleLabel
+            }}）
           </BeautyChip>
         </div>
         <span class="text-[12px] font-medium text-foreground">{{ suggestion.title }}</span>
@@ -376,19 +415,23 @@ const onDiscard = () => {
         class="grid gap-1.5 rounded-lg bg-emerald-50 px-3 py-2.5 text-emerald-900 ring-1 ring-emerald-200"
       >
         <span class="flex items-center gap-1.5 text-[12px] font-semibold">
-          <Icon icon="lucide:mail" :size="13" /> {{ t('已发送站内信给') }} {{ suggestion.recipient.name }}（{{
-            suggestion.recipient.roleLabel
-          }}）· {{ jakartaStamp(sentAt) }}
+          <Icon icon="lucide:mail" :size="13" /> {{ t('已发送站内信给') }}
+          {{ suggestion.recipient.name }}（{{ suggestion.recipient.roleLabel }}）·
+          {{ jakartaStamp(sentAt) }}
         </span>
         <span class="text-[11.5px]">
-          「{{ suggestion.title }}」{{ t('已进入「消息中心 › 我的消息」（原型演示，不真的发送）。') }}
+          「{{ suggestion.title }}」{{
+            t('已进入「消息中心 › 我的消息」（原型演示，不真的发送）。')
+          }}
         </span>
         <span class="flex items-center gap-1.5 pt-0.5">
           <el-button size="small" plain @click="sendState = 'idle'">{{ t('知道了') }}</el-button>
         </span>
       </section>
 
-      <div class="flex flex-wrap items-center justify-between gap-2 border-t border-solid border-border pt-2.5">
+      <div
+        class="flex flex-wrap items-center justify-between gap-2 border-t border-solid border-border pt-2.5"
+      >
         <span class="text-[11px] text-muted-foreground">
           {{ task.origin === 'source' ? `${t('来源：')}${task.sourceId}` : t('来源：演示任务') }}
         </span>

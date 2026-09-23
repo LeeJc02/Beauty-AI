@@ -38,7 +38,7 @@ const group = (path: string, name: string, i18nKey: string, icon: string, childr
 const menuOverview = leaf('/runtime-overview', '运行概览', 'beautyMenu.runtimeOverview', 'ep:data-line', 'beauty/dashboard/overview/index')
 const menuNational = leaf('/national-data', '全国数据', 'beautyMenu.nationalData', 'ep:data-analysis', 'beauty/dashboard/national/index')
 const menuRegional = leaf('/regional-data', '区域数据', 'beautyMenu.regionalData', 'ep:trend-charts', 'beauty/dashboard/regional/index')
-const menuAudit = leaf('/data-audit', '数据审计', 'beautyMenu.dataAudit', 'lucide:shield-check', 'beauty/audit/index')
+const menuAudit = leaf('/data-audit', '智能巡检', 'beautyMenu.dataAudit', 'lucide:shield-check', 'beauty/audit/index')
 
 /* ------------------------------------------------------------------ *
  * 课件（直接跑 SalesBoost-vue 的课件页）
