@@ -8,6 +8,10 @@ vi.mock('@/api/courseware', () => ({
   }
 }))
 
+vi.mock('@/store/modules/user', () => ({
+  useUserStore: () => ({ getUser: { id: 0 }, getRoles: [] })
+}))
+
 vi.mock('@/utils/auth', () => ({
   getAccessToken: vi.fn()
 }))

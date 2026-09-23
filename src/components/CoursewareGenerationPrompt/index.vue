@@ -25,7 +25,11 @@
     >
       <div class="courseware-generation-icon">
         <Icon v-if="isWaitingForUser" icon="ep:question-filled" class="w-4 h-4" />
-        <Icon v-else-if="store.isGenerating" :icon="store.promptIcon" class="w-4 h-4 animate-spin" />
+        <Icon
+          v-else-if="store.isGenerating"
+          :icon="store.promptIcon"
+          class="w-4 h-4 animate-spin"
+        />
         <Icon
           v-else-if="isCoursewareTaskResultReady(store.task)"
           icon="ep:circle-check"
@@ -61,6 +65,29 @@
       <Icon :icon="isCollapsed ? 'ep:arrow-down' : 'ep:arrow-up'" class="w-3.5 h-3.5" />
     </button>
   </div>
+  <el-dialog
+    :model-value="Boolean(inspectionReminder)"
+    title="课件时长需要你确认"
+    width="min(520px, calc(100vw - 32px))"
+    :close-on-click-modal="false"
+    @update:model-value="
+      (visible) => {
+        if (!visible) deferInspectionReminder()
+      }
+    "
+  >
+    <template v-if="inspectionReminder">
+      <p class="inspection-reminder-title">{{ inspectionReminder.entry.title }}</p>
+      <p>{{ inspectionReminder.entry.summary }}</p>
+      <p class="inspection-reminder-note"
+        >确认表示你已知晓本次检查结果。请按要求调整课件，新课件生成后将继续核验。</p
+      >
+    </template>
+    <template #footer>
+      <el-button @click="deferInspectionReminder">稍后处理</el-button>
+      <el-button type="primary" @click="acknowledgeInspectionReminder">本人确认已知晓</el-button>
+    </template>
+  </el-dialog>
 </template>
 
 <script setup lang="ts">
@@ -74,11 +101,36 @@ import {
 } from '@/views/courseware/create/generationTask'
 import { useRoute, useRouter } from 'vue-router'
 import { hasPermission } from '@/directives/permission/hasPermi'
+import { useCoursewareInspectionRuntime } from '@/beauty/lib/coursewareInspectionRuntime'
 
 const route = useRoute()
 const router = useRouter()
 const store = useCoursewareGenerationStore()
 const { t } = useI18n()
+const inspection = useCoursewareInspectionRuntime()
+const deferredReminders = ref(new Set<string>())
+const inspectionReminder = computed(() => {
+  for (const task of inspection.tasks.value) {
+    if (!task.enabled || task.demoScenario) continue
+    const entry = task.entries.find(
+      (item) =>
+        item.status === 'awaiting_confirmation' &&
+        item.notificationState !== 'inbox' &&
+        item.creatorId === String(inspection.actor()?.userId) &&
+        !deferredReminders.value.has(`${inspection.identityKey()}:${item.id}`)
+    )
+    if (entry) return { taskId: task.id, entry }
+  }
+  return undefined
+})
+const deferInspectionReminder = () => {
+  if (inspectionReminder.value)
+    deferredReminders.value.add(`${inspection.identityKey()}:${inspectionReminder.value.entry.id}`)
+}
+const acknowledgeInspectionReminder = () => {
+  const reminder = inspectionReminder.value
+  if (reminder) inspection.acknowledge(reminder.taskId, reminder.entry.id)
+}
 
 const POSITION_STORAGE_KEY = 'courseware:generation-prompt:position'
 const promptRef = ref<HTMLElement>()
@@ -312,6 +364,15 @@ const goReview = () => {
 </script>
 
 <style scoped>
+.inspection-reminder-title {
+  font-weight: 700;
+}
+.inspection-reminder-note {
+  margin-top: 16px;
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+  line-height: 1.7;
+}
 .courseware-generation-prompt {
   position: fixed;
   top: 72px;
@@ -445,7 +506,9 @@ const goReview = () => {
   background: #9a3412;
   border: 0;
   border-radius: 8px;
-  transition: background-color 0.2s, transform 0.2s;
+  transition:
+    background-color 0.2s,
+    transform 0.2s;
 }
 
 .courseware-generation-action:hover {

@@ -559,6 +559,7 @@ export interface DemoCourseware {
   productIds: number[]
   coverUrl: string
   creatorName: string
+  creator?: string
   createTime: string
   publishTime?: string
   viewCount: number

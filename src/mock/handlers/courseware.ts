@@ -1,4 +1,5 @@
 import { MockError, type MockCtx, type MockRoute } from '../types'
+import { currentDemoRole, DEMO_ROLES } from '../session'
 import {
   DEMO_BRANDS,
   DEMO_CATEGORIES,
@@ -48,6 +49,8 @@ interface RequirementEdits {
 
 interface JobState {
   id: number
+  creatorId?: string
+  creatorName?: string
   language: DemoLang
   prompt: string
   attachmentNames: string[]
@@ -65,6 +68,7 @@ interface JobState {
   outlineEdits?: Array<{ id: string; title: string; description: string; keyPoints: string[] }>
   selectedPartIndexes?: number[]
   coursewareId?: number
+  partCoursewareIds?: Record<number, number>
   title?: string
 }
 
@@ -91,6 +95,16 @@ const DEFAULT_STORE = (): MockStore => ({
 })
 
 let store: MockStore | null = null
+
+/** 供 mock 回归测试清理内存态与浏览器持久化态。 */
+export const __resetCoursewareMockStoreForTests = () => {
+  store = null
+  try {
+    localStorage.removeItem(STORAGE_KEY)
+  } catch {
+    // 非浏览器测试环境没有 localStorage 时无需处理
+  }
+}
 
 const loadStore = (): MockStore => {
   if (store) return store
@@ -188,7 +202,8 @@ const completeJob = (job: JobState) => {
       categoryIds: [...job.categoryIds],
       productIds: [...job.productIds],
       coverUrl: '/mock/cover-you.svg',
-      creatorName: '总部培训 · Sarah',
+      creator: job.creatorId,
+      creatorName: job.creatorName || '未知创建人',
       createTime: formatTime(new Date()),
       viewCount: 0,
       learnerCount: 0,
@@ -198,6 +213,18 @@ const completeJob = (job: JobState) => {
     }
     s.coursewares.unshift(created)
     job.coursewareId = id
+    job.partCoursewareIds = {}
+    // 系列子课件各有独立产物与估时，不能把父级合计时长当成每节时长。
+    for (const part of parts) {
+      if (parts.length === 1) job.partCoursewareIds[part.partIndex] = id
+      else {
+        const childId = s.nextCoursewareId++
+        job.partCoursewareIds[part.partIndex] = childId
+        s.coursewares.unshift({ ...created, id: childId, title: part.title,
+          estimatedDurationSeconds: part.estimatedDurationSeconds,
+          previewUrl: `/mock-classroom.html?part=${part.partIndex}` })
+      }
+    }
     job.title = summary.title
   }
   saveStore()
@@ -518,8 +545,8 @@ const snapshot = (job: JobState) => {
       title: titleOf(job),
       items: parts.map((part) => ({
         childJobId: `job-${job.id}-part-${part.partIndex}`,
-        coursewareId,
-        resultCoursewareId: coursewareId,
+        coursewareId: job.partCoursewareIds?.[part.partIndex] ?? coursewareId,
+        resultCoursewareId: job.partCoursewareIds?.[part.partIndex] ?? coursewareId,
         partIndex: part.partIndex,
         partCount: parts.length,
         title: part.title,
@@ -547,8 +574,9 @@ const ensureJob = () => {
 
 const activeJob = (): JobState | undefined => {
   ensureJob()
+  const creatorId = String(1000 + DEMO_ROLES.findIndex((role) => role.key === currentDemoRole().key))
   return loadStore()
-    .jobs.filter((job) => !TERMINAL_PHASES.includes(job.phase))
+    .jobs.filter((job) => !TERMINAL_PHASES.includes(job.phase) && (!job.creatorId || job.creatorId === creatorId))
     .sort((a, b) => b.createdAt - a.createdAt)[0]
 }
 
@@ -561,6 +589,7 @@ const toCoursewareVO = (item: DemoCourseware) => ({
   summary: item.summary,
   tags: item.tags,
   status: item.status,
+  creator: item.creator,
   creatorName: item.creatorName,
   createTime: item.createTime,
   publishTime: item.publishTime,
@@ -604,8 +633,11 @@ export const coursewareRoutes: MockRoute[] = [
       const prompt = [body.description, body.trainingObjective, body.knowledgeMaterial, body.additionalInstruction]
         .filter(Boolean)
         .join(' · ')
+      const creator = currentDemoRole()
       const job: JobState = {
         id: s.nextJobId++,
+        creatorId: String(1000 + DEMO_ROLES.findIndex((role) => role.key === creator.key)),
+        creatorName: creator.nickname,
         language,
         prompt,
         attachmentNames: files.map((file) => file?.name || '未命名素材'),
@@ -694,8 +726,9 @@ export const coursewareRoutes: MockRoute[] = [
         job.outlineEdits = body.outlineEdits
       }
       if (Array.isArray(body.selectedPartIndexes) && body.selectedPartIndexes.length) {
+        // partIndex 是拆分结果中的原始序号，不能把 partCount 改成已选数量。
+        // 否则只选择第 2 部分时会重新生成 part 1，最终页面为空。
         job.selectedPartIndexes = body.selectedPartIndexes
-        job.partCount = body.selectedPartIndexes.length
         job.phase = 'generating'
         job.phaseStartedAt = Date.now()
         saveStore()

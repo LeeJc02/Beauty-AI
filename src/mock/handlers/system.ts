@@ -85,6 +85,16 @@ export const systemRoutes: MockRoute[] = [
   },
   {
     method: 'GET',
+    path: '/system/notify-message/active-task-list',
+    handler: () => []
+  },
+  {
+    method: 'GET',
+    path: '/system/notify-message/active-task-count',
+    handler: () => 0
+  },
+  {
+    method: 'GET',
     path: '/system/notify-message/my-page',
     handler: () => ({ list: [], total: 0 })
   },

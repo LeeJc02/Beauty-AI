@@ -8,6 +8,10 @@ import {
   resolveCoursewareTaskProgress
 } from '@/views/courseware/create/generationTask'
 import { defineStore } from 'pinia'
+import {
+  collectCoursewareInspectionSnapshot,
+  useCoursewareInspectionRuntime
+} from '@/beauty/lib/coursewareInspectionRuntime'
 
 interface CoursewareGenerationState {
   task?: CoursewareGenerationTaskVO
@@ -17,6 +21,8 @@ interface CoursewareGenerationState {
   pollTimer?: number
   initialized: boolean
   taskRevision: number
+  inspectionIdentityKey?: string
+  acknowledgedTaskIds: number[]
   initializationPromise?: Promise<void>
 }
 
@@ -29,11 +35,18 @@ export const useCoursewareGenerationStore = defineStore('coursewareGeneration', 
     pollTimer: undefined,
     initialized: false,
     taskRevision: 0,
+    acknowledgedTaskIds: [],
     initializationPromise: undefined
   }),
   getters: {
+    showPrompt: (state) =>
+      Boolean(
+        state.task &&
+        (!isCoursewareTaskResultReady(state.task) ||
+          !state.acknowledgedTaskIds.includes(state.task.id))
+      ),
     displayProgress: (state) =>
-      state.task ? resolveCoursewareTaskProgress(state.task) : state.loadingProgress ?? 0,
+      state.task ? resolveCoursewareTaskProgress(state.task) : (state.loadingProgress ?? 0),
     isGenerating: (state) => {
       const task = state.task
       if (!task) return false
@@ -56,6 +69,22 @@ export const useCoursewareGenerationStore = defineStore('coursewareGeneration', 
     }
   },
   actions: {
+    // 仅关闭已查看结果的提示，不清空创建页仍需使用的终态和系列数据。
+    acknowledgeResult(taskId?: number) {
+      if (taskId == null || taskId !== this.task?.id || !isCoursewareTaskResultReady(this.task))
+        return
+      if (!this.acknowledgedTaskIds.includes(taskId)) {
+        this.acknowledgedTaskIds.push(taskId)
+      }
+      try {
+        sessionStorage.setItem(
+          'courseware:acknowledged-results',
+          JSON.stringify(this.acknowledgedTaskIds)
+        )
+      } catch {
+        /* 存储不可用时仍保留本次会话内的关闭状态。 */
+      }
+    },
     init() {
       if (this.initializationPromise) return this.initializationPromise
       if (this.initialized) return
@@ -64,10 +93,16 @@ export const useCoursewareGenerationStore = defineStore('coursewareGeneration', 
 
       this.initialized = true
       const revision = this.taskRevision
+      const inspection = useCoursewareInspectionRuntime()
+      const identityKey = inspection.identityKey()
       const initializationPromise = (async () => {
         try {
           const activeTask = await CoursewareApi.getActiveGenerationTask()
           // 初始化请求可能在用户新建/切换任务后才返回，不能覆盖新状态。
+          if (inspection.identityKey() !== identityKey) {
+            this.initialized = false
+            return
+          }
           if (this.taskRevision !== revision || !activeTask?.id) return
           this.setTask(activeTask)
         } catch {
@@ -82,16 +117,36 @@ export const useCoursewareGenerationStore = defineStore('coursewareGeneration', 
       this.initializationPromise = initializationPromise
       return initializationPromise
     },
-    setTask(task?: CoursewareGenerationTaskVO) {
+    captureTaskContext() {
+      return { identityKey: useCoursewareInspectionRuntime().identityKey() }
+    },
+    isTaskContextCurrent(context: { identityKey?: string }) {
+      return context.identityKey === useCoursewareInspectionRuntime().identityKey()
+    },
+    setTask(task?: CoursewareGenerationTaskVO, context?: { identityKey?: string }) {
+      // 创建、确认和路由恢复的异步回包必须仍属于发起请求时的账号。
+      if (context && !this.isTaskContextCurrent(context)) return false
       if (
         task?.id === this.task?.id &&
         task?.snapshotVersion != null &&
         this.task?.snapshotVersion != null &&
         task.snapshotVersion < this.task.snapshotVersion
       )
-        return
+        return false
+      try {
+        const saved: unknown = JSON.parse(
+          sessionStorage.getItem('courseware:acknowledged-results') || '[]'
+        )
+        if (Array.isArray(saved))
+          this.acknowledgedTaskIds = saved.filter((id) => Number.isSafeInteger(id))
+      } catch {
+        /* 忽略损坏或不可用的会话存储。 */
+      }
       this.taskRevision += 1
       this.task = task
+      const inspection = useCoursewareInspectionRuntime()
+      this.inspectionIdentityKey = inspection.identityKey()
+      void collectCoursewareInspectionSnapshot(task)
       this.pollError = false
       this.loadingProgress = task?.progress ?? 0
       if (this.isGenerating) {
@@ -101,6 +156,7 @@ export const useCoursewareGenerationStore = defineStore('coursewareGeneration', 
         // 退回到无 task 的默认分支，进度显示成 0% 且看起来像任务仍在运行。
         this.stopPolling()
       }
+      return true
     },
     async refreshTask() {
       const task = this.task
@@ -112,13 +168,25 @@ export const useCoursewareGenerationStore = defineStore('coursewareGeneration', 
       if (this.refreshingTaskIds.includes(taskId)) return
       this.refreshingTaskIds.push(taskId)
       const revision = this.taskRevision
+      const inspection = useCoursewareInspectionRuntime()
+      const identityKey = inspection.identityKey()
+      if (identityKey !== this.inspectionIdentityKey) {
+        this.refreshingTaskIds = this.refreshingTaskIds.filter((id) => id !== taskId)
+        this.stopPolling()
+        return
+      }
       try {
         const previousPollIntervalMs = task.pollIntervalMs
         const refreshedTask = await CoursewareApi.getGenerationTask(taskId, {
           silentNetworkError: true
         })
         // 取消、重试或新建任务可发生在旧轮询返回前；只接受仍属于同一版本的响应。
-        if (this.taskRevision !== revision || this.task?.id !== taskId) return
+        if (
+          inspection.identityKey() !== identityKey ||
+          this.taskRevision !== revision ||
+          this.task?.id !== taskId
+        )
+          return
         if (
           refreshedTask?.snapshotVersion != null &&
           this.task?.snapshotVersion != null &&
@@ -127,6 +195,7 @@ export const useCoursewareGenerationStore = defineStore('coursewareGeneration', 
           return
         this.pollError = false
         this.task = refreshedTask
+        void collectCoursewareInspectionSnapshot(refreshedTask)
         this.taskRevision += 1
         this.loadingProgress = refreshedTask?.progress ?? this.loadingProgress
         if (this.isGenerating && previousPollIntervalMs !== refreshedTask?.pollIntervalMs) {
